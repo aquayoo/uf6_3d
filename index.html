@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>UF5 & UF6 위치보정 3D Simulator V5.8</title>
+  <title>UF5 & UF6 위치보정 3D Simulator V6.6</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Three.js & OrbitControls CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -26,6 +26,18 @@
       color: #ffffff !important;
       opacity: 0.95;
       font-weight: 700;
+    }
+    .cam-preset-btn.active-cam {
+      background-color: #2563eb !important;
+      color: #ffffff !important;
+      border-color: #1d4ed8 !important;
+      box-shadow: 0 1px 3px rgba(37, 99, 235, 0.3);
+    }
+    .cam-focus-btn.active-cam {
+      background-color: #ea580c !important;
+      color: #ffffff !important;
+      border-color: #c2410c !important;
+      box-shadow: 0 1px 4px rgba(234, 88, 12, 0.4);
     }
     #canvas-container canvas {
       outline: none;
@@ -64,31 +76,30 @@
       cursor: pointer;
     }
 
-    /* JOB 코드 뷰어: 전 라인 1행 고정(whitespace-nowrap) 및 주석 일반 웨이트 처리 */
     .job-line {
-      padding: 3px 7px;
+      padding: 2.5px 5px;
       border-radius: 5px;
-      border-left: 3.5px solid transparent;
+      border-left: 3px solid transparent;
       color: #1e293b;
       white-space: nowrap;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 6px;
+      gap: 4px;
       transition: all 0.15s ease;
     }
     .job-line .cmd-part {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 11.5px;
+      font-size: 11px;
       font-weight: 700;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.03em;
     }
     .job-line .cmt-part {
       font-family: 'Pretendard', sans-serif;
-      font-size: 10.5px;
-      font-weight: 400 !important; /* 요청 3: 주석 Bold 해제 */
+      font-size: 10px;
+      font-weight: 400 !important;
       color: #64748b;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.03em;
     }
     .job-line.active-line {
       background-color: #dbeafe !important;
@@ -109,7 +120,7 @@
     }
     #cycleCompleteBanner.show-banner {
       opacity: 1 !important;
-      transform: translateY(0) scale(1) !important;
+      transform: translate(-50%, 0) scale(1) !important;
     }
 
     ::-webkit-scrollbar {
@@ -120,6 +131,28 @@
       background: #cbd5e1;
       border-radius: 4px;
     }
+
+    /* 시인성 개선: 그레이 테마 스크롤바 */
+    #packetLogList::-webkit-scrollbar {
+      width: 6px;
+    }
+    #packetLogList::-webkit-scrollbar-track {
+      background: #e2e8f0;
+    }
+    #packetLogList::-webkit-scrollbar-thumb {
+      background: #94a3b8;
+      border-radius: 4px;
+    }
+    #packetLogList::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+    .icp-card-enter {
+      animation: icpSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes icpSlideIn {
+      from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 h-screen w-screen flex flex-col justify-between p-2 overflow-hidden">
@@ -127,9 +160,10 @@
   <!-- Header Section -->
   <header class="w-full bg-white rounded-xl shadow-xs border border-slate-200 px-4 py-1.5 flex items-center justify-between shrink-0 mb-1.5">
     <div class="flex items-center gap-2.5">
+      <!-- [버전 표시창: 요청1 반영 - beta 문구 완전 배제 및 NOV.01 표기] (필요시 V4.5로 변경 가능) -->
       <div class="bg-blue-600 text-white px-2.5 py-0.5 rounded-md shadow-xs flex items-center justify-center gap-1 leading-none">
-        <span class="text-xs font-black">V5.8</span>
-        <span class="text-[10px] font-normal text-blue-100">(26.10)</span>
+        <span class="text-xs font-black">V6.6</span>
+        <span class="text-[10px] font-bold text-blue-100">(NOV.01)</span>
       </div>
       <h1 class="text-sm md:text-base font-extrabold text-slate-900 tracking-tight whitespace-nowrap">
         UF5 & UF6 위치보정 3D Simulator
@@ -150,17 +184,21 @@
     
     <div id="canvas-container" class="w-full h-full cursor-grab active:cursor-grabbing relative">
       
-      <!-- 상단 카메라 뷰 프리셋 & TP 뷰어 토글 버튼 -->
-      <div class="absolute top-2.5 left-[262px] flex items-center gap-1.5 bg-white/95 backdrop-blur-md p-1.5 rounded-xl border border-slate-300 text-xs z-10 shadow-sm">
-        <button onclick="setCameraView('iso')" class="px-2.5 py-1 bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-700 rounded-lg transition font-bold border border-slate-200">입체(ISO)</button>
-        <button onclick="setCameraView('top')" class="px-2.5 py-1 bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-700 rounded-lg transition font-bold border border-slate-200">평면도(Top)</button>
-        <button onclick="setCameraView('front')" class="px-2.5 py-1 bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-700 rounded-lg transition font-bold border border-slate-200">정면(Front)</button>
-        <button onclick="setCameraView('side')" class="px-2.5 py-1 bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-700 rounded-lg transition font-bold border border-slate-200">측면(Side)</button>
+      <!-- 상단 카메라 뷰 프리셋 (🔍 가공선 Focus 버튼 포함) -->
+      <div class="absolute top-2.5 left-[222px] flex items-center gap-1.5 bg-white/95 backdrop-blur-md p-1.5 rounded-xl border border-slate-300 text-xs z-10 shadow-sm">
+        <button id="camBtn_iso" onclick="setCameraView('iso')" class="cam-preset-btn active-cam px-2.5 py-1 bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-700 rounded-lg transition font-bold border border-slate-200">입체(ISO)</button>
+        <button id="camBtn_top" onclick="setCameraView('top')" class="cam-preset-btn px-2.5 py-1 bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-700 rounded-lg transition font-bold border border-slate-200">평면도(Top)</button>
+        <button id="camBtn_front" onclick="setCameraView('front')" class="cam-preset-btn px-2.5 py-1 bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-700 rounded-lg transition font-bold border border-slate-200">정면(Front)</button>
+        <button id="camBtn_side" onclick="setCameraView('side')" class="cam-preset-btn px-2.5 py-1 bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-700 rounded-lg transition font-bold border border-slate-200">측면(Side)</button>
+        <button id="camBtn_focus_ab" onclick="setCameraView('focus_ab')" class="cam-focus-btn px-2.5 py-1 bg-orange-50 hover:bg-orange-600 hover:text-white text-orange-700 rounded-lg transition font-extrabold border border-orange-300 flex items-center gap-1 shadow-2xs" title="가공선(A'B') 정밀 클로즈업">
+          <span>🔍</span>
+          <span>가공선(Focus)</span>
+        </button>
         <button onclick="toggleJobViewer()" id="jobToggleNavBtn" class="ml-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-black shadow-xs">TP JOB CLOSE</button>
       </div>
 
-      <!-- 좌측 영역: [1. 11단계 컨트롤 패널] + [2. 6축 관절 제어창 (요청 1 반영)] -->
-      <div class="absolute top-2.5 left-2.5 w-[245px] z-20 flex flex-col gap-2 max-h-[96%] overflow-y-auto pr-0.5">
+      <!-- 좌측 영역 -->
+      <div class="absolute top-2.5 left-2.5 w-[208px] z-20 flex flex-col gap-2 max-h-[96%] overflow-y-auto pr-0.5">
         
         <!-- 좌측 상단: 11단계 시나리오 선택 패널 -->
         <div class="bg-white/95 backdrop-blur-md p-2.5 rounded-xl shadow-lg border border-slate-300 text-xs flex flex-col gap-1.5">
@@ -177,7 +215,7 @@
               <span id="playIcon">▶</span>
               <span id="playText">자동 재생</span>
             </button>
-            <button onclick="resetSimulation()" class="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg text-xs font-bold transition border border-slate-300 shrink-0 whitespace-nowrap" title="처음 위치로 초기화">
+            <button onclick="resetSimulation()" class="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg text-xs font-bold transition border border-slate-300 shrink-0 whitespace-nowrap" title="처음 위치로 초기화 및 TCP 로그 자동 클리어">
               초기화
             </button>
           </div>
@@ -191,153 +229,112 @@
             </button>
           </div>
 
-          <div id="stepListContent" class="flex flex-col gap-1 pt-1 border-t border-slate-200 text-[11.5px] font-semibold">
+          <div id="stepListContent" class="flex flex-col gap-1 pt-1 border-t border-slate-200 text-[11px] font-semibold tracking-tight">
             <button onclick="goToStep(0)" class="step-btn active text-left px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 transition flex items-center justify-between whitespace-nowrap">
               <span>01. Base 좌표계</span>
-              <span class="step-subtag text-[10.5px] text-slate-500">시스템 준비</span>
+              <span class="step-subtag text-[9.5px] text-slate-500">시스템 준비</span>
             </button>
             <button onclick="goToStep(1)" class="step-btn text-left px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 transition flex items-center justify-between whitespace-nowrap">
               <span>02. UF5 마스터 기준</span>
-              <span class="step-subtag text-[10.5px] text-slate-500">UF5 생성</span>
+              <span class="step-subtag text-[9.5px] text-slate-500">UF5 생성</span>
             </button>
             <button onclick="goToStep(2)" class="step-btn text-left px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 transition flex items-center justify-between whitespace-nowrap">
               <span>03. UF6 시트 중첩</span>
-              <span class="step-subtag text-[10.5px] text-slate-500">UF6 생성</span>
+              <span class="step-subtag text-[9.5px] text-slate-500">UF6 생성</span>
             </button>
             <button onclick="goToStep(3)" class="step-btn text-left px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 transition flex items-center justify-between whitespace-nowrap">
               <span>04. Point A/B 지정</span>
-              <span class="step-subtag text-[10.5px] text-slate-500">모델 준비</span>
+              <span class="step-subtag text-[9.5px] text-slate-500">모델 준비</span>
             </button>
             <button onclick="goToStep(4)" class="step-btn text-left px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 transition flex items-center justify-between whitespace-nowrap">
               <span>05. Point A/B 티칭</span>
-              <span class="step-subtag text-[10.5px] text-slate-500">개별점 기록</span>
+              <span class="step-subtag text-[9.5px] text-slate-500">개별점 기록</span>
             </button>
             <button onclick="goToStep(5)" class="step-btn text-left px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 transition flex items-center justify-between whitespace-nowrap">
               <span>06. A-B 선형 검증</span>
-              <span class="step-subtag text-[10.5px] text-slate-500">궤적 검증</span>
+              <span class="step-subtag text-[9.5px] text-slate-500">궤적 검증</span>
             </button>
             <button onclick="goToStep(6)" class="step-btn text-left px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 transition flex items-center justify-between whitespace-nowrap">
               <span>07. 부품 변위 인입</span>
-              <span class="step-subtag text-[10.5px] text-slate-500">부품 투입</span>
+              <span class="step-subtag text-[9.5px] text-slate-500">부품 투입</span>
             </button>
             <button onclick="goToStep(7)" class="step-btn text-left px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 transition flex items-center justify-between whitespace-nowrap">
               <span>08. 3DU/3DM 스캔</span>
-              <span class="step-subtag text-[10.5px] text-slate-500">스캔</span>
+              <span class="step-subtag text-[9.5px] text-slate-500">스캔</span>
             </button>
             <button onclick="goToStep(8)" class="step-btn text-left px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 transition flex items-center justify-between whitespace-nowrap">
               <span>09. UF6 연산 확정</span>
-              <span class="step-subtag text-[10.5px] text-slate-500">[R:T] 생성</span>
+              <span class="step-subtag text-[9.5px] text-slate-500">[R:T] 생성</span>
             </button>
             <button onclick="goToStep(9)" class="step-btn text-left px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 transition flex items-center justify-between whitespace-nowrap">
               <span>10. 6자유도 보정주행</span>
-              <span class="step-subtag text-[10.5px] text-slate-500">보정 작업</span>
+              <span class="step-subtag text-[9.5px] text-slate-500">🔍 포커스 주행</span>
             </button>
             <button onclick="goToStep(10)" class="step-btn text-left px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 transition flex items-center justify-between whitespace-nowrap">
               <span>11. 홈 원점 안전복귀</span>
-              <span class="step-subtag text-[10.5px] text-slate-500">작업 완료</span>
+              <span class="step-subtag text-[9.5px] text-slate-500">작업 완료</span>
             </button>
           </div>
         </div>
 
-        <!-- 좌측 하단 (요청 1 완벽 반영): J1~J6 괄호 설명 제거로 1행 슬림화 & '수동 조그(Jog)' + '추종 복귀' 1행 배치 -->
+        <!-- 좌측 하단: 6축 관절 제어 & 조그 슬라이더 -->
         <div class="bg-white/95 backdrop-blur-md p-2.5 rounded-xl shadow-lg border border-slate-300 text-xs flex flex-col gap-1.5">
-          <div class="flex items-center justify-between border-b border-slate-200 pb-1">
-            <div class="flex items-center gap-1.5 font-black text-slate-900 text-xs whitespace-nowrap">
+          <div class="flex items-center justify-between gap-2.5 border-b border-slate-200 pb-1">
+            <div class="flex items-center gap-1.5 font-black text-slate-900 text-xs whitespace-nowrap shrink-0">
               <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" id="ikStatusDot"></span>
-              <span>🤖 6축 관절 제어</span>
+              <span>6축 관절 조정</span>
             </div>
-            <div class="flex items-center gap-1">
+            <div class="flex items-center gap-1 shrink-0">
               <button id="trackModeBtn" onclick="toggleRobotTracking()" class="px-2 py-0.5 bg-teal-600 hover:bg-teal-700 text-white rounded text-[11px] font-bold transition whitespace-nowrap">
                 추종 ON
               </button>
-              <button id="jogToggleBtn" onclick="toggleJogDrawer()" class="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-[11px] font-bold whitespace-nowrap">
-                JOG
+              <button onclick="resetJointSliders()" class="px-2 py-0.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded text-[11px] font-bold transition whitespace-nowrap" title="자동 추종 자세 복귀">
+                복귀
               </button>
             </div>
           </div>
 
-          <!-- J1~J6 괄호 제거하여 1행 콤팩트 표시 -->
-          <div class="grid grid-cols-2 gap-1 text-xs font-mono font-bold">
-            <div class="bg-slate-50 px-2.5 py-1 rounded border border-slate-200 flex justify-between items-center whitespace-nowrap">
-              <span class="text-red-600">J1</span>
-              <b id="jval1" class="text-slate-900">0°</b>
+          <div class="space-y-1 pt-0.5">
+            <div class="flex items-center gap-1.5 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+              <span class="w-5 font-mono text-red-600 font-extrabold text-[11px]">J1:</span>
+              <input id="joint1" type="range" min="-180" max="180" value="0" step="1" oninput="setJointAngle(0,this.value)" class="w-full h-1.5 bg-slate-200 rounded cursor-pointer">
+              <span id="jointVal1" class="w-8 font-mono text-right text-slate-900 font-bold text-[11px]">0°</span>
             </div>
-            <div class="bg-slate-50 px-2.5 py-1 rounded border border-slate-200 flex justify-between items-center whitespace-nowrap">
-              <span class="text-green-600">J2</span>
-              <b id="jval2" class="text-slate-900">+45°</b>
+            <div class="flex items-center gap-1.5 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+              <span class="w-5 font-mono text-green-600 font-extrabold text-[11px]">J2:</span>
+              <input id="joint2" type="range" min="-60" max="135" value="45" step="1" oninput="setJointAngle(1,this.value)" class="w-full h-1.5 bg-slate-200 rounded cursor-pointer">
+              <span id="jointVal2" class="w-8 font-mono text-right text-slate-900 font-bold text-[11px]">+45°</span>
             </div>
-            <div class="bg-slate-50 px-2.5 py-1 rounded border border-slate-200 flex justify-between items-center whitespace-nowrap">
-              <span class="text-blue-600">J3</span>
-              <b id="jval3" class="text-slate-900">-85°</b>
+            <div class="flex items-center gap-1.5 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+              <span class="w-5 font-mono text-blue-600 font-extrabold text-[11px]">J3:</span>
+              <input id="joint3" type="range" min="-160" max="60" value="-85" step="1" oninput="setJointAngle(2,this.value)" class="w-full h-1.5 bg-slate-200 rounded cursor-pointer">
+              <span id="jointVal3" class="w-8 font-mono text-right text-slate-900 font-bold text-[11px]">-85°</span>
             </div>
-            <div class="bg-slate-50 px-2.5 py-1 rounded border border-slate-200 flex justify-between items-center whitespace-nowrap">
-              <span class="text-red-600">J4</span>
-              <b id="jval4" class="text-slate-900">0°</b>
+            <div class="flex items-center gap-1.5 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+              <span class="w-5 font-mono text-red-600 font-extrabold text-[11px]">J4:</span>
+              <input id="joint4" type="range" min="-180" max="180" value="0" step="1" oninput="setJointAngle(3,this.value)" class="w-full h-1.5 bg-slate-200 rounded cursor-pointer">
+              <span id="jointVal4" class="w-8 font-mono text-right text-slate-900 font-bold text-[11px]">0°</span>
             </div>
-            <div class="bg-slate-50 px-2.5 py-1 rounded border border-slate-200 flex justify-between items-center whitespace-nowrap">
-              <span class="text-green-600">J5</span>
-              <b id="jval5" class="text-slate-900">+40°</b>
+            <div class="flex items-center gap-1.5 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+              <span class="w-5 font-mono text-green-600 font-extrabold text-[11px]">J5:</span>
+              <input id="joint5" type="range" min="-125" max="125" value="40" step="1" oninput="setJointAngle(4,this.value)" class="w-full h-1.5 bg-slate-200 rounded cursor-pointer">
+              <span id="jointVal5" class="w-8 font-mono text-right text-slate-900 font-bold text-[11px]">+40°</span>
             </div>
-            <div class="bg-slate-50 px-2.5 py-1 rounded border border-slate-200 flex justify-between items-center whitespace-nowrap">
-              <span class="text-blue-600">J6</span>
-              <b id="jval6" class="text-slate-900">0°</b>
-            </div>
-          </div>
-
-          <!-- 펼침 시 나오는 조절바: '슬라이더' 문구 제거 & '추종 복귀' 1행 배치 -->
-          <div id="jogDrawer" class="hidden bg-slate-50 p-2 rounded-lg border border-slate-200 space-y-1">
-            <div class="flex justify-between items-center pb-1 mb-1 border-b border-slate-200 whitespace-nowrap">
-              <span class="text-[11px] font-bold text-slate-800">🎛️ 수동 조그(Jog)</span>
-              <button onclick="resetJointSliders()" class="px-2 py-0.5 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded text-[11px] font-bold transition whitespace-nowrap">
-                추종 복귀
-              </button>
-            </div>
-
-            <div class="space-y-1 border-b border-slate-200 pb-1.5 mb-1.5">
-              <div class="flex items-center gap-1.5">
-                <span class="w-6 font-mono text-red-600 font-extrabold text-xs">J1:</span>
-                <input id="joint1" type="range" min="-180" max="180" value="0" step="1" oninput="setJointAngle(0,this.value)" class="w-full h-1.5 bg-slate-200 rounded cursor-pointer">
-                <span id="jointVal1" class="w-9 font-mono text-right text-slate-900 font-bold text-xs">0°</span>
-              </div>
-              <div class="flex items-center gap-1.5">
-                <span class="w-6 font-mono text-green-600 font-extrabold text-xs">J2:</span>
-                <input id="joint2" type="range" min="-60" max="135" value="45" step="1" oninput="setJointAngle(1,this.value)" class="w-full h-1.5 bg-slate-200 rounded cursor-pointer">
-                <span id="jointVal2" class="w-9 font-mono text-right text-slate-900 font-bold text-xs">+45°</span>
-              </div>
-              <div class="flex items-center gap-1.5">
-                <span class="w-6 font-mono text-blue-600 font-extrabold text-xs">J3:</span>
-                <input id="joint3" type="range" min="-160" max="60" value="-85" step="1" oninput="setJointAngle(2,this.value)" class="w-full h-1.5 bg-slate-200 rounded cursor-pointer">
-                <span id="jointVal3" class="w-9 font-mono text-right text-slate-900 font-bold text-xs">-85°</span>
-              </div>
-            </div>
-
-            <div class="space-y-1">
-              <div class="flex items-center gap-1.5">
-                <span class="w-6 font-mono text-red-600 font-extrabold text-xs">J4:</span>
-                <input id="joint4" type="range" min="-180" max="180" value="0" step="1" oninput="setJointAngle(3,this.value)" class="w-full h-1.5 bg-slate-200 rounded cursor-pointer">
-                <span id="jointVal4" class="w-9 font-mono text-right text-slate-900 font-bold text-xs">0°</span>
-              </div>
-              <div class="flex items-center gap-1.5">
-                <span class="w-6 font-mono text-green-600 font-extrabold text-xs">J5:</span>
-                <input id="joint5" type="range" min="-125" max="125" value="40" step="1" oninput="setJointAngle(4,this.value)" class="w-full h-1.5 bg-slate-200 rounded cursor-pointer">
-                <span id="jointVal5" class="w-9 font-mono text-right text-slate-900 font-bold text-xs">+40°</span>
-              </div>
-              <div class="flex items-center gap-1.5">
-                <span class="w-6 font-mono text-blue-600 font-extrabold text-xs">J6:</span>
-                <input id="joint6" type="range" min="-360" max="360" value="0" step="1" oninput="setJointAngle(5,this.value)" class="w-full h-1.5 bg-slate-200 rounded cursor-pointer">
-                <span id="jointVal6" class="w-9 font-mono text-right text-slate-900 font-bold text-xs">0°</span>
-              </div>
+            <div class="flex items-center gap-1.5 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+              <span class="w-5 font-mono text-blue-600 font-extrabold text-[11px]">J6:</span>
+              <input id="joint6" type="range" min="-360" max="360" value="0" step="1" oninput="setJointAngle(5,this.value)" class="w-full h-1.5 bg-slate-200 rounded cursor-pointer">
+              <span id="jointVal6" class="w-8 font-mono text-right text-slate-900 font-bold text-[11px]">0°</span>
             </div>
           </div>
         </div>
 
       </div>
 
-      <!-- 우측 영역 (요청 2 & 3 반영): 폭을 350px로 넓히고 내부 상하 간격을 압축하여 1920x1080에서 세로 스크롤 없이 1행 표시 -->
-      <div class="absolute top-2.5 right-2.5 w-[350px] z-20 flex flex-col gap-2 max-h-[96%] overflow-y-auto pl-0.5">
+      <!-- 우측 영역 -->
+      <div class="absolute top-2.5 right-2.5 w-[305px] z-20 flex flex-col gap-2 max-h-[96%] overflow-y-auto pl-0.5">
         
-        <!-- 1. UF5 ORG 설정 패널 (요청 2: 아이콘 제거 후 Random / Reload / CLOSE 영단어 1행 배치) -->
-        <div id="paramPanel" class="bg-white/95 backdrop-blur-md p-2.5 rounded-xl shadow-lg border border-slate-300 text-xs">
+        <!-- 1. UF5 ORG 설정 패널 -->
+        <div id="paramPanel" class="bg-white/95 backdrop-blur-md p-2.5 rounded-xl shadow-lg border border-slate-300 text-xs shrink-0">
           <div class="flex items-center justify-between border-b border-slate-200 pb-1.5 mb-1.5">
             <div class="flex items-center gap-1.5 font-black text-slate-900 text-xs whitespace-nowrap">
               <span class="text-blue-600">🛠️</span>
@@ -391,7 +388,7 @@
               <div class="space-y-1">
                 <div class="text-[11px] text-teal-900 font-extrabold flex justify-between">
                   <span>[끝점 B (벡터 L, θ, Bz)]</span>
-                  <span id="ptBValBadge" class="font-mono text-teal-950 bg-white px-2 py-0.2 rounded border border-teal-200 whitespace-nowrap">2.2, 1.2, 0.0</span>
+                  <span id="ptBValBadge" class="font-mono text-teal-950 bg-white px-1.5 rounded border border-teal-200 whitespace-nowrap">2.2, 1.2, 0.0</span>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                   <div>
@@ -413,7 +410,7 @@
               <div class="space-y-1 border-b border-slate-200 pb-1.5 mb-1.5">
                 <div class="flex items-center gap-2"><span class="w-5 font-mono text-red-600 font-extrabold text-xs">dX:</span><input type="range" id="uf6_dx" min="-1.25" max="1.75" step="0.25" value="0.00" oninput="onParamChange()" class="w-full h-1.5 bg-slate-200 rounded cursor-pointer"><span id="txt_uf6_dx" class="w-9 font-mono text-right text-slate-900 font-bold text-xs">+0.0</span></div>
                 <div class="flex items-center gap-2"><span class="w-5 font-mono text-green-600 font-extrabold text-xs">dY:</span><input type="range" id="uf6_dy" min="-1.25" max="1.75" step="0.25" value="0.00" oninput="onParamChange()" class="w-full h-1.5 bg-slate-200 rounded cursor-pointer"><span id="txt_uf6_dy" class="w-9 font-mono text-right text-slate-900 font-bold text-xs">+0.0</span></div>
-                <div class="flex items-center gap-2"><span class="w-5 font-mono text-blue-600 font-extrabold text-xs">dZ:</span><input type="range" id="uf6_dz" min="-1.00" max="1.50" step="0.25" value="0.00" oninput="onParamChange()" class="w-full h-1.5 bg-slate-200 rounded cursor-pointer"><span id="txt_uf6_dz" class="w-9 font-mono text-right text-slate-900 font-bold text-xs">+0.0</span></div>
+                <div class="flex items-center gap-2"><span class="w-5 font-mono text-blue-600 font-extrabold text-xs">dZ:</span><input type="range" id="uf6_dz" min="-1.25" max="1.50" step="0.25" value="0.00" oninput="onParamChange()" class="w-full h-1.5 bg-slate-200 rounded cursor-pointer"><span id="txt_uf6_dz" class="w-9 font-mono text-right text-slate-900 font-bold text-xs">+0.0</span></div>
               </div>
               <div class="space-y-1">
                 <div class="flex items-center gap-2"><span class="w-5 font-mono text-red-600 font-extrabold text-xs">dRx:</span><input type="range" id="uf6_rx" min="-25" max="25" step="1" value="0" oninput="onParamChange()" class="w-full h-1.5 bg-slate-200 rounded cursor-pointer"><span id="txt_uf6_rx" class="w-8 font-mono text-right text-slate-900 font-bold text-xs">+0°</span></div>
@@ -424,8 +421,36 @@
           </div>
         </div>
 
-        <!-- 2. 티칭 펜던트 뷰어 (요청 3 완벽 반영: 모든 명령어+주석이 1행에 들어오도록 폭 350px 확보 및 주석 Bold 해제/1pt 축소) -->
-        <div id="jobViewerDrawer" class="bg-white/95 backdrop-blur-md p-2.5 rounded-xl shadow-lg border border-slate-300 flex flex-col text-xs">
+        <!-- 1.5. 3D 포인트 클라우드(ICP) 미니 뷰 카드 -->
+        <div id="icpMiniViewCard" class="hidden icp-card-enter bg-slate-900/95 backdrop-blur-md p-2.5 rounded-xl shadow-xl border border-blue-500/40 text-xs flex-col gap-1.5 shrink-0">
+          <div class="flex items-center justify-between border-b border-slate-700/80 pb-1">
+            <div class="flex items-center gap-1.5 font-extrabold text-white text-[11px] whitespace-nowrap">
+              <span class="w-2 h-2 rounded-full bg-orange-500 animate-ping" id="icpStatusDot"></span>
+              <span>3D Point Cloud (ICP 정합)</span>
+            </div>
+            <span id="icpStateBadge" class="px-1.5 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-400/30 rounded text-[10px] font-mono font-bold">
+              SCANNING
+            </span>
+          </div>
+
+          <div class="relative w-full h-[135px] bg-slate-950 rounded-lg border border-slate-800 overflow-hidden">
+            <div id="icpCanvasContainer" class="w-full h-full"></div>
+            <div class="absolute top-1.5 left-2 flex flex-col gap-0.5 text-[10px] font-mono pointer-events-none">
+              <div class="flex items-center gap-1 text-blue-400 font-bold">
+                <span class="w-2 h-2 rounded-full bg-[#2563eb] inline-block"></span>Master (UF5)
+              </div>
+              <div class="flex items-center gap-1 text-orange-400 font-bold">
+                <span class="w-2 h-2 rounded-full bg-[#ea580c] inline-block"></span>Measured (UF6)
+              </div>
+            </div>
+            <div class="absolute bottom-1.5 right-2 bg-black/75 px-2 py-0.5 rounded border border-slate-700 text-[10px] font-mono text-slate-300 pointer-events-none">
+              RMSE: <span id="icpRmseVal" class="text-emerald-400 font-extrabold">0.000</span> m
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. 티칭 펜던트 뷰어 -->
+        <div id="jobViewerDrawer" class="bg-white/95 backdrop-blur-md p-2.5 rounded-xl shadow-lg border border-slate-300 flex flex-col text-xs shrink-0">
           <div class="flex items-center justify-between border-b border-slate-200 pb-1.5 mb-1.5">
             <div class="flex items-center gap-1.5 font-black text-slate-900 text-xs whitespace-nowrap">
               <span>📟</span>
@@ -439,19 +464,24 @@
             <button id="tabBtnUF6" onclick="switchJobTab('UF6')" class="py-1 rounded-md font-bold bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 transition">UF6.JOB</button>
           </div>
 
-          <div class="p-1.5 bg-slate-50 rounded-lg border border-slate-200 max-h-[250px] overflow-y-auto space-y-0.5" id="jobCodeContainer">
+          <div class="p-1.5 bg-slate-50 rounded-lg border border-slate-200 max-h-[220px] overflow-y-auto space-y-0.5" id="jobCodeContainer">
             <div id="codeWORK" class="space-y-0.5">
               <div class="job-line" id="lineWORK_1"><span class="cmd-part text-slate-500">0001 ' === WORK.JOB : MASTER & WORK ===</span><span class="cmt-part"></span></div>
               <div class="job-line" id="lineWORK_2"><span class="cmd-part text-blue-700">0002 TOOL 1</span><span class="cmt-part">' 실링 건 TCP 설정</span></div>
               <div class="job-line" id="lineWORK_3"><span class="cmd-part text-blue-700">0003 UFRAME 5</span><span class="cmt-part">' 마스터(UF5) 선택</span></div>
-              <div class="job-line" id="lineWORK_4"><span class="cmd-part text-blue-700">0004 MOVE P, P_READY</span><span class="cmt-part">' 준비 위치 진입</span></div>
-              <div class="job-line" id="lineWORK_5"><span class="cmd-part text-blue-700">0005 MOVE L, P_A</span><span class="cmt-part">' 📍 Point A 티칭</span></div>
-              <div class="job-line" id="lineWORK_6"><span class="cmd-part text-blue-700">0006 MOVE L, P_B</span><span class="cmt-part">' 📍 Point B 티칭</span></div>
-              <div class="job-line" id="lineWORK_7"><span class="cmd-part text-blue-700">0007 MOVE L, P_A TO P_B</span><span class="cmt-part">' 🤖 A→B 선형 검증</span></div>
-              <div class="job-line" id="lineWORK_8"><span class="cmd-part text-purple-700">0008 CALL UF6.JOB</span><span class="cmt-part">' 📷 비전 스캔 호출</span></div>
-              <div class="job-line" id="lineWORK_9"><span class="cmd-part text-blue-700">0009 UFRAME 6</span><span class="cmt-part">' 🔄 UF6(Work) 전환</span></div>
-              <div class="job-line" id="lineWORK_10"><span class="cmd-part text-orange-700">0010 MOVE L, P_A'→P_B', UF=6</span><span class="cmt-part">' 6축 보정 주행</span></div>
-              <div class="job-line" id="lineWORK_11"><span class="cmd-part text-blue-700">0011 MOVE P, P_HOME</span><span class="cmt-part">' 🏁 홈 복귀 완료</span></div>
+              <div class="job-line" id="lineWORK_4"><span class="cmd-part text-blue-700">0004 MOVE P, P_READY</span><span class="cmt-part">' [P] 준비 위치 진입</span></div>
+              <div class="job-line" id="lineWORK_5"><span class="cmd-part text-blue-700">0005 MOVE P, P_A_UP</span><span class="cmt-part">' [P] A 상공(Z+1m) 진입</span></div>
+              <div class="job-line" id="lineWORK_6"><span class="cmd-part text-blue-700">0006 MOVE L, P_A</span><span class="cmt-part">' [L] A 수직하강 티칭</span></div>
+              <div class="job-line" id="lineWORK_7"><span class="cmd-part text-blue-700">0007 MOVE P, P_B_UP</span><span class="cmt-part">' [P] A상공→B상공 점프</span></div>
+              <div class="job-line" id="lineWORK_8"><span class="cmd-part text-blue-700">0008 MOVE L, P_B</span><span class="cmt-part">' [L] B 수직하강 티칭</span></div>
+              <div class="job-line" id="lineWORK_9"><span class="cmd-part text-blue-700">0009 MOVE L, P_A</span><span class="cmt-part">' [L] A-B 선형 검증 진입</span></div>
+              <div class="job-line" id="lineWORK_10"><span class="cmd-part text-blue-700">0010 MOVE L, P_B</span><span class="cmt-part">' [L] A→B 선형 검증 주행</span></div>
+              <div class="job-line" id="lineWORK_11"><span class="cmd-part text-blue-700">0011 MOVE P, P_READY</span><span class="cmt-part">' [P] 검증 완료 대기 복귀</span></div>
+              <div class="job-line" id="lineWORK_12"><span class="cmd-part text-purple-700">0012 CALL UF6.JOB</span><span class="cmt-part">' 📷 비전 스캔 호출</span></div>
+              <div class="job-line" id="lineWORK_13"><span class="cmd-part text-blue-700">0013 UFRAME 6</span><span class="cmt-part">' 🔄 UF6(Work) 전환</span></div>
+              <div class="job-line" id="lineWORK_14"><span class="cmd-part text-orange-700">0014 MOVE L, P_A</span><span class="cmt-part">' [L] 변위된 A' 수직진입</span></div>
+              <div class="job-line" id="lineWORK_15"><span class="cmd-part text-orange-700">0015 MOVE L, P_B</span><span class="cmt-part">' [L] A'→B' 6축 보정 주행</span></div>
+              <div class="job-line" id="lineWORK_16"><span class="cmd-part text-blue-700">0016 MOVE P, P_HOME</span><span class="cmt-part">' [P] 홈 복귀 완료</span></div>
             </div>
             <div id="codeUF6" class="space-y-0.5 hidden">
               <div class="job-line" id="lineUF6_1"><span class="cmd-part text-slate-500">0001 ' === UF6.JOB : AITZ 3DU[3DM] ===</span><span class="cmt-part"></span></div>
@@ -472,14 +502,37 @@
 
       </div>
 
-      <!-- Cycle Completed 배지 -->
-      <div id="cycleCompleteBanner" class="pointer-events-none absolute top-[18%] right-[380px] z-10 opacity-0 translate-y-2 scale-95 flex flex-col items-center">
-        <div class="bg-white/95 backdrop-blur-md px-6 py-3.5 rounded-2xl border-2 border-blue-500 shadow-xl flex items-center gap-3">
-          <span class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-base font-black shadow-xs">✓</span>
+      <!-- 작업 완료/실패 동적 배지 (중앙 상단) -->
+      <div id="cycleCompleteBanner" class="pointer-events-none absolute top-[58px] left-1/2 -translate-x-1/2 z-30 opacity-0 translate-y-2 scale-95 flex flex-col items-center">
+        <div id="cycleBannerBox" class="bg-white/95 backdrop-blur-md px-6 py-3 rounded-2xl border-2 border-blue-500 shadow-2xl flex items-center gap-3">
+          <span id="cycleBannerIcon" class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-base font-black shadow-xs">✓</span>
           <div class="flex flex-col">
-            <span class="text-[10px] font-extrabold text-blue-600 tracking-widest uppercase">1-Cycle Process Done</span>
-            <span class="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Cycle Completed !!</span>
+            <span id="cycleBannerSub" class="text-[10px] font-extrabold text-blue-600 tracking-widest uppercase">1-Cycle Process Done</span>
+            <span id="cycleBannerTitle" class="text-lg md:text-xl font-black text-slate-900 tracking-tight">Cycle Completed !!</span>
           </div>
+        </div>
+      </div>
+
+      <!-- 하단 중앙: 시인성 극대화 슬레이트-그레이 통신 패킷 로그 터미널 -->
+      <div id="packetTerminal" class="absolute bottom-2.5 left-1/2 -translate-x-1/2 w-[520px] max-w-[calc(100vw-540px)] bg-slate-100/95 backdrop-blur-md rounded-xl border border-slate-300 shadow-2xl z-20 flex flex-col overflow-hidden text-xs">
+        <div class="bg-slate-200 px-3 py-1.5 border-b border-slate-300 flex items-center justify-between shrink-0">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-600" id="termStatusDot"></span>
+            <span class="font-mono font-extrabold text-[11px] text-slate-800 tracking-tight">
+              TCP/IP PACKET LOG <span class="text-slate-500 font-normal">(Hi6 ⇄ AITZ 3DU)</span>
+            </span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="tolStatusBadge" class="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded text-[10px] font-mono font-bold">
+              TOL: OK
+            </span>
+            <button onclick="clearPacketLogs()" class="px-2 py-0.5 bg-white hover:bg-slate-50 text-slate-700 rounded text-[10px] font-mono font-bold border border-slate-300 shadow-2xs transition" title="로그 지우기">
+              CLEAR
+            </button>
+          </div>
+        </div>
+        <div id="packetLogList" class="h-[96px] overflow-y-auto px-3 py-2 font-mono text-[11px] space-y-1 select-text bg-slate-50">
+          <div class="text-slate-600">[SYS] Hi6 Controller ⇄ AITZ 3DU[3DM] Vision Socket Ready (Port: 5000)</div>
         </div>
       </div>
 
@@ -513,7 +566,7 @@
         </div>
       </div>
 
-      <a href="mailto:jaekwang.yoo@atmc.co.kr?subject=%5BAT%20Simulator%20v5.8%20Feedback%5D" 
+      <a href="mailto:jaekwang.yoo@atmc.co.kr?subject=%5BAT%20Simulator%20V6.5%20Feedback%5D" 
          class="bg-white hover:bg-blue-50 px-3.5 py-1 rounded-lg border border-slate-300 hover:border-blue-400 text-xs font-bold text-slate-700 hover:text-blue-700 shadow-2xs shrink-0 flex items-center gap-2 transition-all cursor-pointer"
          title="교육관에게 피드백 이메일 보내기">
         <span class="text-blue-600 text-sm">✍️</span>
@@ -559,7 +612,7 @@
         title: "Point A & B 개별 점 티칭 (Z+1m 점프 & 1초 정지 기록)",
         icon: "📍",
         heading: "5. Point A & Point B 개별 포인트 정밀 티칭 (Point Teaching)",
-        body: "대기 위치 ➔ <strong>Point A 티칭(1초 정지)</strong> ➔ 위로 <strong>Z+1m 상승</strong> 후 Point B 상공(Z+1m) 경유 ➔ <strong>Point B 티칭(1초 정지)</strong> ➔ <strong>Point B 상공(Z+1m) 퇴피</strong>"
+        body: "대기 위치 ➔ <strong>Point A 상공(Z+1m) 진입 후 수직 하강 티칭(1초 기록)</strong> ➔ <strong>Z+1m 상승 및 B 상공 점프(P)</strong> ➔ <strong>Point B 수직 하강 티칭(1초 기록)</strong> ➔ <strong>B 상공(Z+1m) 퇴피</strong>"
       },
       {
         badge: "STEP 6",
@@ -580,28 +633,28 @@
         title: "AITZ 3DU[3DM] 스캔 (좌측 프로젝터 빔 & 우측 카메라 촬영)",
         icon: "📸",
         heading: "8. AITZ 3DU[3DM] 좌측 프로젝터 구조광 투사 & 우측(ATM) 카메라 촬영",
-        body: "정면 기준 <strong>왼쪽 프로젝터에서 에메랄드 구조광이 투사</strong>되고, <strong>오른쪽(ATM 로고 아래) 카메라에서 하늘색 다중 플래시가 8~9회 점멸</strong>하며 캡처합니다."
+        body: "정면 기준 <strong>왼쪽 프로젝터에서 에메랄드 구조광이 투사</strong>되고, <strong>오른쪽(ATM 로고 아래) 카메라에서 하늘색 다중 플래시가 8~9회 점멸</strong>하며 3D 점군을 캡처합니다."
       },
       {
         badge: "STEP 9",
-        title: "UF6 연산 완료 & 실선 좌표축/가공선 100% 확정",
+        title: "UF6 연산 완료 & ICP 정합 수렴 확정",
         icon: "✨",
-        heading: "9. 3DU 알고리즘 연산 완료 (선분 A'B' 실측 확정)",
-        body: "스캐너 연산이 완료되어 <strong>UF6_XX', UF6_XY' 축과 변위된 3D 선분 A'B'가 100% 선명한 실선과 프레임 시트로 확정</strong>됩니다. (UF5는 40%로 흐려짐)"
+        heading: "9. 3DU 알고리즘 ICP 정합 수렴 & 선분 A'B' 실측 확정",
+        body: "측정 점군이 마스터 점군으로 <strong>ICP 정합 수렴(RMSE → 0)</strong>하며 <strong>UF6_XX', UF6_XY' 축과 변위된 3D 선분 A'B'가 100% 실선으로 확정</strong>됩니다. (허용 오차 초과 시 비상 루프 가동)"
       },
       {
         badge: "STEP 10",
-        title: "6-DOF 위치보정 선형 주행 (A' -> B' 수직 법선 추종)",
+        title: "6-DOF 위치보정 선형 주행 (A' -> B' 수직 법선 추종 & 카메라 자동 Focus)",
         icon: "🔄",
-        heading: "10. 계측된 UF6 프레임 기반 6자유도 위치보정 정밀 주행",
-        body: "6축 로봇의 TCP가 <strong>변위된 Point A'로 진입하여 시트의 기울어진 법선 각도(Rx, Ry, Rz)에 맞춰 손목(J4~J6)을 회전시킨 후 Point B'까지 완벽히 추종</strong>합니다."
+        heading: "10. 계측된 UF6 프레임 기반 6자유도 위치보정 정밀 주행 (자동 Focus 확대)",
+        body: "카메라가 <strong>변위된 선분 A'B'를 자동 밀착 확대(Focus)</strong>하며, 6축 로봇의 TCP가 <strong>Point A'의 법선 각도(Rx, Ry, Rz)에 맞춰 손목(J4~J6)을 회전시킨 후 Point B'까지 정밀 추종</strong>합니다."
       },
       {
         badge: "STEP 11",
-        title: "작업 완료 및 홈 원점(Home) 안전 복귀 (Cycle Completed !!)",
+        title: "작업 완료 및 홈 원점(Home) 안전 복귀 (전체 입체 뷰 자동 복원)",
         icon: "🏁",
-        heading: "11. 작업 완료 및 안전 홈 위치 복귀 (Cycle Completed !!)",
-        body: "가공을 완수한 6축 로봇이 <strong>최초의 안전 홈 위치(Home Standby)로 복귀</strong>한 뒤, 화면 우측 상단에 <strong>Cycle Completed !!</strong> 완료 메시지를 띄웁니다."
+        heading: "11. 작업 완료 및 안전 홈 위치 복귀 (ISO 뷰 복원)",
+        body: "카메라가 <strong>전체 입체 뷰(ISO)로 자동 복원</strong>되며, 가공을 완수한 6축 로봇이 <strong>안전 홈 위치(Home Standby)로 복귀</strong>한 뒤 작업 완료(Cycle Completed !!) 또는 실패 배지를 표시합니다."
       }
     ];
 
@@ -611,9 +664,9 @@
     let isAnimating = false;
     let isParamPanelCollapsed = false;
     let isStepPanelCollapsed = false;
-    let isJogDrawerOpen = false;
     let isJobViewerOpen = true;
     let currentJobTab = 'WORK';
+    let currentCameraMode = 'iso';
 
     let scene, camera, renderer, controls;
     let baseAxes, masterGroup, sheetGroup, robotGroup;
@@ -648,6 +701,452 @@
     let masterOrigin = new THREE.Vector3();
     let dynamicSheetShift = { pos: new THREE.Vector3(), rot: new THREE.Euler() };
 
+    let camTransition = {
+      active: false,
+      startTime: 0,
+      duration: 620,
+      startPos: new THREE.Vector3(),
+      endPos: new THREE.Vector3(),
+      startTarget: new THREE.Vector3(),
+      endTarget: new THREE.Vector3()
+    };
+
+    const TOLERANCE_LIMIT = {
+      dx_min: -1.0, dx_max: 1.3,
+      dy_min: -1.0, dy_max: 1.3,
+      dz_min: -1.0, dz_max: 1.0,
+      rx_min: -15.0, rx_max: 18.0,
+      ry_min: -15.0, ry_max: 18.0,
+      rz_min: -20.0, rz_max: 25.0
+    };
+
+    let isToleranceError = false;
+    let packetSeqNo = 1;
+    let paramLogDebounceTimer = null;
+    let lastLoggedStep = -1;
+    let stepSubLogFlags = { step4_A: false, step4_B: false, step7_flash: false };
+
+    function getFormattedTimestamp() {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      const ss = String(now.getSeconds()).padStart(2, '0');
+      const ms = String(now.getMilliseconds()).padStart(3, '0');
+      return `${hh}:${mm}:${ss}.${ms}`;
+    }
+
+    function getShiftPayloadString() {
+      const { dx, dy, dz, rx, ry, rz } = ufParams;
+      const f = (v) => (v >= 0 ? '+' : '') + v.toFixed(2);
+      const r = (v) => (v >= 0 ? '+' : '') + v;
+      return `dX:${f(dx)}, dY:${f(dy)}, dZ:${f(dz)}, dRx:${r(rx)}°, dRy:${r(ry)}°, dRz:${r(rz)}°`;
+    }
+
+    function checkToleranceStatus() {
+      const { dx, dy, dz, rx, ry, rz } = ufParams;
+      const isDxNg = (dx < TOLERANCE_LIMIT.dx_min || dx > TOLERANCE_LIMIT.dx_max);
+      const isDyNg = (dy < TOLERANCE_LIMIT.dy_min || dy > TOLERANCE_LIMIT.dy_max);
+      const isDzNg = (dz < TOLERANCE_LIMIT.dz_min || dz > TOLERANCE_LIMIT.dz_max);
+      const isRxNg = (rx < TOLERANCE_LIMIT.rx_min || rx > TOLERANCE_LIMIT.rx_max);
+      const isRyNg = (ry < TOLERANCE_LIMIT.ry_min || ry > TOLERANCE_LIMIT.ry_max);
+      const isRzNg = (rz < TOLERANCE_LIMIT.rz_min || rz > TOLERANCE_LIMIT.rz_max);
+
+      const isOver = isDxNg || isDyNg || isDzNg || isRxNg || isRyNg || isRzNg;
+      isToleranceError = isOver;
+
+      const badge = document.getElementById('tolStatusBadge');
+      const dot = document.getElementById('termStatusDot');
+      if (badge && dot) {
+        if (isOver) {
+          badge.innerText = "TOL: NG (OVER)";
+          badge.className = "px-2 py-0.5 bg-rose-100 text-rose-800 border border-rose-400 rounded text-[10px] font-mono font-black animate-pulse";
+          dot.className = "w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping";
+        } else {
+          badge.innerText = "TOL: OK";
+          badge.className = "px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded text-[10px] font-mono font-bold";
+          dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-600";
+        }
+      }
+      return { isOver, isDxNg, isDyNg, isDzNg, isRxNg, isRyNg, isRzNg };
+    }
+
+    function appendPacketLog(type, message) {
+      const listEl = document.getElementById('packetLogList');
+      if (!listEl) return;
+
+      const row = document.createElement('div');
+      row.className = "leading-tight break-all flex items-start gap-1.5";
+
+      const timeStr = getFormattedTimestamp();
+      const seqStr = String(packetSeqNo++).padStart(3, '0');
+
+      let tagHtml = '';
+      let msgColorClass = 'text-slate-900 font-semibold';
+
+      if (type === 'TX') {
+        tagHtml = `<span class="text-emerald-700 font-extrabold shrink-0">[TX #${seqStr}]</span>`;
+        msgColorClass = 'text-emerald-950 font-bold';
+      } else if (type === 'RX') {
+        tagHtml = `<span class="text-amber-700 font-extrabold shrink-0">[RX #${seqStr}]</span>`;
+        msgColorClass = 'text-amber-950 font-bold';
+      } else if (type === 'WARN') {
+        tagHtml = `<span class="text-rose-600 font-black shrink-0">[WARN #${seqStr}]</span>`;
+        msgColorClass = 'text-rose-950 font-black';
+      } else {
+        tagHtml = `<span class="text-blue-700 font-bold shrink-0">[SYS #${seqStr}]</span>`;
+        msgColorClass = 'text-slate-800 font-semibold';
+      }
+
+      row.innerHTML = `<span class="text-slate-900 font-mono font-bold shrink-0">[${timeStr}]</span>${tagHtml}<span class="${msgColorClass}">${message}</span>`;
+      listEl.appendChild(row);
+
+      while (listEl.children.length > 120) {
+        listEl.removeChild(listEl.firstChild);
+      }
+
+      requestAnimationFrame(() => {
+        listEl.scrollTo({
+          top: listEl.scrollHeight,
+          behavior: 'smooth'
+        });
+      });
+    }
+
+    function clearPacketLogs(customNotice = null) {
+      const listEl = document.getElementById('packetLogList');
+      if (!listEl) return;
+      packetSeqNo = 1;
+      const noticeMsg = customNotice || "Terminal log cleared by operator. Standby.";
+      listEl.innerHTML = `<div class="text-slate-700 font-bold">[${getFormattedTimestamp()}] [SYS] ${noticeMsg}</div>`;
+    }
+
+    function logStepScenarioPackets(stepIdx) {
+      const tol = checkToleranceStatus();
+      const payload = getShiftPayloadString();
+      stepSubLogFlags = { step4_A: false, step4_B: false, step7_flash: false };
+
+      switch (stepIdx) {
+        case 0:
+          appendPacketLog('SYS', `INIT_SYSTEM :: Base_Org(0,0,0), Robot=HOME_STANDBY`);
+          break;
+        case 1:
+          appendPacketLog('TX', `SET_UFRAME 5 :: Master_Org(${ufParams.uf5_x.toFixed(1)}, ${ufParams.uf5_y.toFixed(1)}, ${ufParams.uf5_z.toFixed(1)}), Rz=${ufParams.uf5_rz}°`);
+          break;
+        case 2:
+          appendPacketLog('TX', `MOVE P, P_READY :: Entering Scanner FOV-Free Standby Pos`);
+          break;
+        case 3:
+          appendPacketLog('SYS', `TARGET_SET :: Pt_A(${ufParams.pta_x.toFixed(1)},${ufParams.pta_y.toFixed(1)},${ufParams.pta_z.toFixed(1)}) -> Pt_B(${ufParams.ptb_x.toFixed(1)},${ufParams.ptb_y.toFixed(1)},${ufParams.ptb_z.toFixed(1)})`);
+          break;
+        case 4:
+          appendPacketLog('TX', `START_TEACH :: Approach Pt_A_UP(Z+1.0m) -> Vertical Descent`);
+          break;
+        case 5:
+          appendPacketLog('TX', `VERIFY_PATH :: MOVE L (Pt_A -> Pt_B, L=${ufParams.pt_len.toFixed(1)}m, θ=${ufParams.pt_ang}°)`);
+          break;
+        case 6:
+          appendPacketLog('RX', `DI12=ON (PART_IN_DETECTED) :: Shifted Workpiece Injected [${payload}]`);
+          if (tol.isOver) {
+            appendPacketLog('WARN', `PRE_CHECK_WARNING :: Shift out of tolerance bounds!`);
+          }
+          break;
+        case 7:
+          appendPacketLog('TX', `CALL UF6.JOB -> DO15=ON :: Trigger AITZ_3DU[3DM] Structured Light Scan`);
+          break;
+        case 8:
+          appendPacketLog('RX', `VISION_CALC_DONE :: [R|T] Solved (${payload})`);
+          if (tol.isOver) {
+            appendPacketLog('WARN', `ALARM_TOLERANCE_OVER :: Range exceeded -> AUTO SAFE RECOVERY ARMED!`);
+          } else {
+            appendPacketLog('TX', `SET_UFRAME 6, UF5, SHIFT :: UF6 Work Frame Verified (OK)`);
+          }
+          break;
+        case 9:
+          if (tol.isOver) {
+            appendPacketLog('WARN', `INTERLOCK_ACTIVE :: Step 10 Bypassed due to TOLERANCE_OVER!`);
+          } else {
+            appendPacketLog('TX', `UFRAME 6 :: 6-DOF Compensated MOVE L (Pt_A' -> Pt_B') & Camera Focus_AB`);
+          }
+          break;
+        case 10:
+          if (tol.isOver) {
+            appendPacketLog('WARN', `CYCLE_TERMINATED :: The work Fails! Robot secured at Home.`);
+          } else {
+            appendPacketLog('TX', `MOVE P, P_HOME :: Cycle Completed !! Camera restored to ISO View.`);
+          }
+          break;
+      }
+    }
+
+    // === 3D 포인트 클라우드(ICP) 미니 뷰 모듈 ===
+    const ICP_PARTICLE_COUNT = 180;
+    let icpScene, icpCamera, icpRenderer;
+    let icpMasterGroup, icpMeasuredGroup;
+    let icpMasterPoints, icpMeasuredPoints;
+    let icpBasePositions = new Float32Array(ICP_PARTICLE_COUNT * 3);
+
+    function generateICPPointCloudPositions() {
+      const pta = getPointALocalVector();
+      const ptb = getPointBLocalVector();
+      let idx = 0;
+
+      for (let i = 0; i < 100; i++) {
+        const ratio = i / 100;
+        let x = 0, z = 0;
+        if (ratio < 0.25) { x = -1.3 + (ratio * 4) * 2.6; z = -1.0; }
+        else if (ratio < 0.50) { x = 1.3; z = -1.0 + ((ratio - 0.25) * 4) * 2.0; }
+        else if (ratio < 0.75) { x = 1.3 - ((ratio - 0.50) * 4) * 2.6; z = 1.0; }
+        else { x = -1.3; z = 1.0 - ((ratio - 0.75) * 4) * 2.0; }
+
+        icpBasePositions[idx * 3] = x;
+        icpBasePositions[idx * 3 + 1] = (Math.sin(i * 1.7) * 0.03);
+        icpBasePositions[idx * 3 + 2] = z;
+        idx++;
+      }
+
+      for (let i = 0; i < 80; i++) {
+        const s = i / 79;
+        const lx = THREE.MathUtils.lerp(pta.x - 1.2, ptb.x - 1.2, s);
+        const ly = THREE.MathUtils.lerp(pta.y, ptb.y, s) * 0.4;
+        const lz = THREE.MathUtils.lerp(pta.z + 0.6, ptb.z + 0.6, s);
+        const spread = (i % 2 === 0 ? 1 : -1) * ((i % 5) * 0.045);
+
+        icpBasePositions[idx * 3] = lx + spread * 0.5;
+        icpBasePositions[idx * 3 + 1] = ly + 0.08 * Math.sin(s * Math.PI);
+        icpBasePositions[idx * 3 + 2] = lz + spread;
+        idx++;
+      }
+    }
+
+    function initICPMiniView() {
+      const container = document.getElementById('icpCanvasContainer');
+      if (!container) return;
+
+      const w = container.clientWidth || 280;
+      const h = container.clientHeight || 135;
+
+      icpScene = new THREE.Scene();
+      icpScene.background = new THREE.Color(0x020617);
+
+      icpCamera = new THREE.PerspectiveCamera(42, w / h, 0.1, 30);
+      icpCamera.position.set(0.0, 2.35, 3.15);
+      icpCamera.lookAt(0, 0, 0);
+
+      icpRenderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      icpRenderer.setSize(w, h);
+      icpRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      container.innerHTML = '';
+      container.appendChild(icpRenderer.domElement);
+
+      const miniGrid = new THREE.GridHelper(3.6, 8, 0x1e293b, 0x0f172a);
+      miniGrid.position.y = -0.35;
+      icpScene.add(miniGrid);
+
+      generateICPPointCloudPositions();
+
+      const masterGeo = new THREE.BufferGeometry();
+      masterGeo.setAttribute('position', new THREE.BufferAttribute(icpBasePositions.slice(), 3));
+
+      const measuredGeo = new THREE.BufferGeometry();
+      measuredGeo.setAttribute('position', new THREE.BufferAttribute(icpBasePositions.slice(), 3));
+
+      const masterMat = new THREE.PointsMaterial({
+        color: 0x2563eb,
+        size: 0.085,
+        transparent: true,
+        opacity: 0.92
+      });
+
+      const measuredMat = new THREE.PointsMaterial({
+        color: 0xea580c,
+        size: 0.095,
+        transparent: true,
+        opacity: 0.95
+      });
+
+      icpMasterPoints = new THREE.Points(masterGeo, masterMat);
+      icpMeasuredPoints = new THREE.Points(measuredGeo, measuredMat);
+
+      icpMasterGroup = new THREE.Group();
+      icpMasterGroup.add(icpMasterPoints);
+      icpScene.add(icpMasterGroup);
+
+      icpMeasuredGroup = new THREE.Group();
+      icpMeasuredGroup.add(icpMeasuredPoints);
+      icpScene.add(icpMeasuredGroup);
+    }
+
+    function refreshICPPointCloudGeometry() {
+      if (!icpMasterPoints || !icpMeasuredPoints) return;
+      generateICPPointCloudPositions();
+      icpMasterPoints.geometry.attributes.position.array.set(icpBasePositions);
+      icpMasterPoints.geometry.attributes.position.needsUpdate = true;
+      icpMeasuredPoints.geometry.attributes.position.array.set(icpBasePositions);
+      icpMeasuredPoints.geometry.attributes.position.needsUpdate = true;
+    }
+
+    function updateICPMiniView(t = 1) {
+      const card = document.getElementById('icpMiniViewCard');
+      if (!card) return;
+
+      const isVisibleStep = (currentStep === 7 || currentStep === 8);
+      if (!isVisibleStep) {
+        if (!card.classList.contains('hidden')) {
+          card.classList.add('hidden');
+          card.classList.remove('flex');
+        }
+        return;
+      }
+
+      if (card.classList.contains('hidden')) {
+        card.classList.remove('hidden');
+        card.classList.add('flex');
+        if (!icpRenderer) {
+          initICPMiniView();
+        } else {
+          const container = document.getElementById('icpCanvasContainer');
+          if (container && container.clientWidth > 0) {
+            icpCamera.aspect = container.clientWidth / container.clientHeight;
+            icpCamera.updateProjectionMatrix();
+            icpRenderer.setSize(container.clientWidth, container.clientHeight);
+          }
+        }
+      }
+
+      if (!icpMasterGroup || !icpMeasuredGroup) return;
+
+      const visualScale = 0.45;
+      const shiftVec = new THREE.Vector3(
+        ufParams.dx * visualScale,
+        ufParams.dz * visualScale,
+        -ufParams.dy * visualScale
+      );
+      const shiftEuler = new THREE.Euler(
+        THREE.MathUtils.degToRad(ufParams.rx),
+        THREE.MathUtils.degToRad(ufParams.rz),
+        THREE.MathUtils.degToRad(-ufParams.ry),
+        'ZYX'
+      );
+      const qShifted = new THREE.Quaternion().setFromEuler(shiftEuler);
+      const qIdentity = new THREE.Quaternion();
+
+      const rawPosErr = Math.hypot(ufParams.dx, ufParams.dy, ufParams.dz);
+      const rawRotErr = Math.hypot(ufParams.rx, ufParams.ry, ufParams.rz) * 0.015;
+      const baseRmse = Math.max(0.012, rawPosErr + rawRotErr);
+
+      const badgeEl = document.getElementById('icpStateBadge');
+      const dotEl = document.getElementById('icpStatusDot');
+      const rmseEl = document.getElementById('icpRmseVal');
+
+      if (currentStep === 7) {
+        icpMeasuredGroup.position.copy(shiftVec);
+        icpMeasuredGroup.quaternion.copy(qShifted);
+
+        const appearAlpha = THREE.MathUtils.clamp((t - 0.15) / 0.65, 0.15, 0.95);
+        icpMeasuredPoints.material.opacity = appearAlpha;
+
+        if (badgeEl) {
+          badgeEl.innerText = "CAPTURING CLOUD";
+          badgeEl.className = "px-1.5 py-0.5 bg-orange-500/20 text-orange-300 border border-orange-400/40 rounded text-[10px] font-mono font-bold";
+        }
+        if (dotEl) dotEl.className = "w-2 h-2 rounded-full bg-orange-500 animate-ping";
+        if (rmseEl) {
+          rmseEl.innerText = baseRmse.toFixed(3);
+          rmseEl.className = "text-orange-400 font-extrabold";
+        }
+      } else if (currentStep === 8) {
+        const convT = 1 - Math.pow(1 - THREE.MathUtils.clamp(t, 0, 1), 3);
+        const remainFactor = 1.0 - convT;
+
+        icpMeasuredGroup.position.copy(shiftVec).multiplyScalar(remainFactor);
+        icpMeasuredGroup.quaternion.copy(qShifted).slerp(qIdentity, convT);
+        icpMeasuredPoints.material.opacity = 0.95;
+
+        const currentRmse = baseRmse * remainFactor;
+        const isConverged = (convT >= 0.96);
+
+        if (badgeEl) {
+          badgeEl.innerText = isConverged ? (isToleranceError ? "ICP COMPUTE (NG)" : "ICP LOCKED ✓") : `CONVERGING ${(convT * 100).toFixed(0)}%`;
+          badgeEl.className = isConverged
+            ? (isToleranceError ? "px-1.5 py-0.5 bg-rose-500/20 text-rose-300 border border-rose-400/40 rounded text-[10px] font-mono font-bold" : "px-1.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 rounded text-[10px] font-mono font-bold")
+            : "px-1.5 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-400/40 rounded text-[10px] font-mono font-bold";
+        }
+        if (dotEl) {
+          dotEl.className = isConverged
+            ? (isToleranceError ? "w-2 h-2 rounded-full bg-rose-500" : "w-2 h-2 rounded-full bg-emerald-400")
+            : "w-2 h-2 rounded-full bg-blue-400 animate-ping";
+        }
+        if (rmseEl) {
+          rmseEl.innerText = currentRmse.toFixed(3);
+          rmseEl.className = isConverged ? (isToleranceError ? "text-rose-400 font-extrabold" : "text-emerald-400 font-extrabold") : "text-amber-300 font-extrabold";
+        }
+      }
+
+      const slowSpin = Math.sin(performance.now() * 0.0012) * 0.18;
+      icpMasterGroup.rotation.y = slowSpin;
+      icpMeasuredGroup.rotation.y += slowSpin;
+
+      if (icpRenderer && icpScene && icpCamera) {
+        icpRenderer.render(icpScene, icpCamera);
+      }
+    }
+
+    // MOVE P & L 궤적 보간
+    const _tmpPLinear = new THREE.Vector3();
+    const _tmpPMid = new THREE.Vector3();
+    const _tmpPDirOut = new THREE.Vector3();
+    const _tmpPCtrl = new THREE.Vector3();
+
+    function interpolateMove(pStart, pEnd, t, options = {}, targetOut = null) {
+      const result = targetOut || new THREE.Vector3();
+      const clampedT = THREE.MathUtils.clamp(t, 0.0, 1.0);
+      const mode = options.mode || 'L';
+
+      _tmpPLinear.lerpVectors(pStart, pEnd, clampedT);
+
+      if (mode === 'L') {
+        result.copy(_tmpPLinear);
+        return result;
+      }
+
+      if (mode === 'P_HOP') {
+        const hopH = options.hopHeight !== undefined ? options.hopHeight : 0.4;
+        const yOffset = Math.sin(clampedT * Math.PI) * hopH;
+        result.copy(_tmpPLinear);
+        result.y += yOffset;
+        return result;
+      }
+
+      if (mode === 'P_SWING') {
+        const swingH = options.swingHeight !== undefined ? options.swingHeight : 1.0;
+        const swingOut = options.swingOut !== undefined ? options.swingOut : 0.8;
+        const center = options.centerRef || baseOriginPos;
+
+        _tmpPMid.addVectors(pStart, pEnd).multiplyScalar(0.5);
+
+        _tmpPDirOut.set(_tmpPMid.x - center.x, 0, _tmpPMid.z - center.z);
+        if (_tmpPDirOut.lengthSq() > 1e-4) {
+          _tmpPDirOut.normalize();
+        } else {
+          _tmpPDirOut.set(1, 0, 0);
+        }
+
+        _tmpPCtrl.copy(_tmpPMid)
+          .addScaledVector(new THREE.Vector3(0, 1, 0), swingH)
+          .addScaledVector(_tmpPDirOut, swingOut);
+
+        const oneMinusT = 1.0 - clampedT;
+        result.copy(pStart).multiplyScalar(oneMinusT * oneMinusT)
+          .addScaledVector(_tmpPCtrl, 2.0 * oneMinusT * clampedT)
+          .addScaledVector(pEnd, clampedT * clampedT);
+
+        return result;
+      }
+
+      result.copy(_tmpPLinear);
+      return result;
+    }
+
     function toggleStepPanel() {
       const content = document.getElementById('stepListContent');
       const btn = document.getElementById('btnToggleStepPanel');
@@ -662,14 +1161,6 @@
       isParamPanelCollapsed = !isParamPanelCollapsed;
       if (isParamPanelCollapsed) { content.classList.add('hidden'); btn.innerText = "OPEN"; }
       else { content.classList.remove('hidden'); btn.innerText = "CLOSE"; }
-    }
-
-    function toggleJogDrawer() {
-      const drawer = document.getElementById('jogDrawer');
-      const btn = document.getElementById('jogToggleBtn');
-      isJogDrawerOpen = !isJogDrawerOpen;
-      if (isJogDrawerOpen) { drawer.classList.remove('hidden'); btn.innerText = "CLOSE"; }
-      else { drawer.classList.add('hidden'); btn.innerText = "JOG"; }
     }
 
     function toggleJobViewer() {
@@ -716,13 +1207,22 @@
         if (currentStep <= 1) activeLineId = 'lineWORK_3';
         else if (currentStep === 2 || currentStep === 3) activeLineId = 'lineWORK_4';
         else if (currentStep === 4) {
-          if (animProgress <= 0.662) activeLineId = 'lineWORK_5';
-          else activeLineId = 'lineWORK_6';
+          if (animProgress <= 0.14) activeLineId = 'lineWORK_5';
+          else if (animProgress <= 0.42) activeLineId = 'lineWORK_6';
+          else if (animProgress <= 0.64) activeLineId = 'lineWORK_7';
+          else activeLineId = 'lineWORK_8';
         }
-        else if (currentStep === 5) activeLineId = 'lineWORK_7';
-        else if (currentStep >= 6 && currentStep <= 8) activeLineId = 'lineWORK_8';
-        else if (currentStep === 9) activeLineId = 'lineWORK_10';
-        else if (currentStep === 10) activeLineId = (animProgress >= 0.85) ? 'lineWORK_11' : 'lineWORK_10';
+        else if (currentStep === 5) {
+          if (animProgress <= 0.346) activeLineId = 'lineWORK_9';
+          else if (animProgress <= 0.731) activeLineId = 'lineWORK_10';
+          else activeLineId = 'lineWORK_11';
+        }
+        else if (currentStep >= 6 && currentStep <= 8) activeLineId = 'lineWORK_12';
+        else if (currentStep === 9) {
+          if (animProgress <= 0.45) activeLineId = 'lineWORK_14';
+          else activeLineId = 'lineWORK_15';
+        }
+        else if (currentStep === 10) activeLineId = 'lineWORK_16';
       } else {
         if (currentStep === 6) activeLineId = 'lineUF6_2';
         else if (currentStep === 7) {
@@ -766,15 +1266,27 @@
       onParamChange();
     }
 
+    function getUF6WorldQuaternion(scaleFactor = 1.0) {
+      const masterRadY = THREE.MathUtils.degToRad(ufParams.uf5_rz);
+      const qMaster = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), masterRadY);
+
+      const localEuler = new THREE.Euler(
+        THREE.MathUtils.degToRad(ufParams.rx * scaleFactor),
+        THREE.MathUtils.degToRad(ufParams.rz * scaleFactor),
+        THREE.MathUtils.degToRad(-ufParams.ry * scaleFactor),
+        'ZYX'
+      );
+      const qDelta = new THREE.Quaternion().setFromEuler(localEuler);
+      return qMaster.multiply(qDelta);
+    }
+
     function recalculateParameters() {
       masterOrigin.copy(robotToThreeWorld(ufParams.uf5_x, ufParams.uf5_y, ufParams.uf5_z));
       const masterRadY = THREE.MathUtils.degToRad(ufParams.uf5_rz);
       const localDisp = new THREE.Vector3(ufParams.dx, ufParams.dz, -ufParams.dy);
       localDisp.applyAxisAngle(new THREE.Vector3(0, 1, 0), masterRadY);
       dynamicSheetShift.pos.copy(localDisp);
-      dynamicSheetShift.rot.set(
-        THREE.MathUtils.degToRad(ufParams.rx), THREE.MathUtils.degToRad(ufParams.rz), THREE.MathUtils.degToRad(-ufParams.ry), 'XYZ'
-      );
+      dynamicSheetShift.rot.setFromQuaternion(getUF6WorldQuaternion(1.0));
     }
 
     function createTextSprite(text, color = '#0f172a', fontSize = 28, strokeColor = '#ffffff') {
@@ -885,10 +1397,10 @@
 
       scene = new THREE.Scene();
       scene.background = new THREE.Color(0xf8fafc);
-      scene.fog = new THREE.FogExp2(0xf8fafc, 0.014);
+      scene.fog = new THREE.FogExp2(0xf8fafc, 0.018);
 
       camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-      camera.position.set(2.8, 11.5, 18.0);
+      camera.position.set(1.8, 6.2, 9.8);
 
       renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setSize(width, height);
@@ -896,9 +1408,12 @@
       container.appendChild(renderer.domElement);
 
       controls = new THREE.OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true; controls.dampingFactor = 0.08;
-      controls.maxPolarAngle = Math.PI / 2 - 0.02; controls.minDistance = 3; controls.maxDistance = 42;
-      controls.target.set(0.0, 2.3, 0.2);
+      controls.enableDamping = true; 
+      controls.dampingFactor = 0.08;
+      controls.maxPolarAngle = Math.PI / 2 - 0.02; 
+      controls.minDistance = 1.2; 
+      controls.maxDistance = 28;
+      controls.target.set(1.2, 1.8, 0.4);
 
       scene.add(new THREE.AmbientLight(0xffffff, 1.05));
       const dirLight = new THREE.DirectionalLight(0xffffff, 0.65);
@@ -911,6 +1426,7 @@
       buildTransparentSheetUF6();
       createRobotFullModel();
       buildFocusedToolAssembly();
+      initICPMiniView();
 
       window.addEventListener('resize', onWindowResize);
       updateStepUI();
@@ -918,12 +1434,12 @@
     }
 
     function buildFloorAndTable() {
-      const grid = new THREE.GridHelper(32, 32, 0xcbd5e1, 0xe2e8f0);
+      const grid = new THREE.GridHelper(24, 24, 0xcbd5e1, 0xe2e8f0);
       grid.position.y = -0.01; scene.add(grid);
       const tableGeo = new THREE.BoxGeometry(14.5, 0.01, 9.5);
-      const table = new THREE.Mesh(tableGeo, new THREE.MeshBasicMaterial({ color: 0xcfd8e3, transparent: true, opacity: 0.25, depthWrite: false }));
+      const table = new THREE.Mesh(tableGeo, new THREE.MeshBasicMaterial({ color: 0xcfd8e3, transparent: true, opacity: 0.20, depthWrite: false }));
       table.position.set(1.0, -0.005, -0.6); scene.add(table);
-      const bevel = new THREE.LineSegments(new THREE.EdgesGeometry(tableGeo), new THREE.LineBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.65 }));
+      const bevel = new THREE.LineSegments(new THREE.EdgesGeometry(tableGeo), new THREE.LineBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.5 }));
       bevel.position.copy(table.position); scene.add(bevel);
     }
 
@@ -940,9 +1456,11 @@
     function buildMasterUF5() {
       masterGroup = new THREE.Group(); masterGroup.position.copy(masterOrigin);
       const boxGeo = new THREE.BoxGeometry(3.6, 1.0, 3.2); boxGeo.translate(1.2, -0.5, -0.6);
-      standMesh = new THREE.Mesh(boxGeo, new THREE.MeshBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.18, depthWrite: false }));
+      
+      standMesh = new THREE.Mesh(boxGeo, new THREE.MeshBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.05, depthWrite: false }));
       masterGroup.add(standMesh);
-      standEdge = new THREE.LineSegments(new THREE.EdgesGeometry(boxGeo), new THREE.LineDashedMaterial({ color: 0x475569, dashSize: 0.25, gapSize: 0.15, transparent: true, opacity: 0.8, linewidth: 1.5 }));
+      
+      standEdge = new THREE.LineSegments(new THREE.EdgesGeometry(boxGeo), new THREE.LineDashedMaterial({ color: 0x64748b, dashSize: 0.25, gapSize: 0.15, transparent: true, opacity: 0.45, linewidth: 1 }));
       standEdge.computeLineDistances(); masterGroup.add(standEdge);
       updateMasterStandHeight();
 
@@ -1059,15 +1577,15 @@
 
     function buildTransparentSheetUF6() {
       sheetGroup = new THREE.Group(); sheetGroup.position.copy(masterOrigin);
-      const sW = 3.6, sH = 0.04, sD = 3.0;
+      const sW = 3.6, sH = 0.012, sD = 3.0;
       const sheetGeo = new THREE.BoxGeometry(sW, sH, sD); sheetGeo.translate(1.2, -sH / 2, -0.6);
-      sheetMeshRef = new THREE.Mesh(sheetGeo, new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.30, depthWrite: false }));
+      sheetMeshRef = new THREE.Mesh(sheetGeo, new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.22, depthWrite: false }));
       sheetGroup.add(sheetMeshRef);
-      sheetEdgeLinesRef = new THREE.LineSegments(new THREE.EdgesGeometry(sheetGeo), new THREE.LineBasicMaterial({ color: 0x0284c7, linewidth: 2, transparent: true, opacity: 0.45 }));
+      sheetEdgeLinesRef = new THREE.LineSegments(new THREE.EdgesGeometry(sheetGeo), new THREE.LineBasicMaterial({ color: 0x0284c7, linewidth: 1.5, transparent: true, opacity: 0.45 }));
       sheetEdgeLinesRef.position.copy(sheetMeshRef.position); sheetGroup.add(sheetEdgeLinesRef);
 
       sheetBadgeSprite = createTextSprite("🗂️ UF6_Work", "#0369a1", 26, "#ffffff");
-      sheetBadgeSprite.position.set(1.2, 0.28, -2.1); sheetGroup.add(sheetBadgeSprite);
+      sheetBadgeSprite.position.set(1.2, 0.24, -2.1); sheetGroup.add(sheetBadgeSprite);
 
       const uf6Labels = { x: "UF6_XX'", y: "UF6_XY'", z: "UF6_Z'" };
       uf6DashedAxesGroup = createCustom3DDashedAxes(1.35, uf6Labels, 1.45, true); sheetGroup.add(uf6DashedAxesGroup);
@@ -1174,20 +1692,20 @@
       scene.add(robotGroup);
     }
 
-    function updateRobotFullModel(tcpPosition, tcpRotation = new THREE.Euler()) {
+    function updateRobotFullModel(tcpPosition, targetQuatIn = null) {
       if (!robotArmGroup || jointPivots.length < 6) return;
       robotArmGroup.visible = true;
 
       if (manualJointMode || !tcpPosition) { applyJointAngles(); return; }
 
-      const targetQuat = new THREE.Quaternion().setFromEuler(tcpRotation);
+      const targetQuat = targetQuatIn || new THREE.Quaternion();
       const toolUpVec = new THREE.Vector3(0, ROBOT_DH.toolY, 0).applyQuaternion(targetQuat);
       const pJ6 = tcpPosition.clone().add(toolUpVec);
 
       let q1 = Math.atan2(-(pJ6.z - baseOriginPos.z), pJ6.x - baseOriginPos.x);
       let pJ5 = new THREE.Vector3();
 
-      for (let iter = 0; iter < 3; iter++) {
+      for (let iter = 0; iter < 4; iter++) {
         const uR = new THREE.Vector3(Math.cos(q1), 0, -Math.sin(q1));
         const toolUpDir = toolUpVec.clone().normalize();
         const proj = uR.clone().sub(toolUpDir.clone().multiplyScalar(uR.dot(toolUpDir)));
@@ -1226,7 +1744,6 @@
       robotJointAngles.forEach((angle, i) => {
         const txt = `${angle > 0 ? '+' : ''}${angle}°`;
         const label = document.getElementById(`jointVal${i + 1}`); if (label) label.textContent = txt;
-        const readout = document.getElementById(`jval${i + 1}`); if (readout) readout.textContent = txt;
         const slider = document.getElementById(`joint${i + 1}`); if (slider) slider.value = THREE.MathUtils.clamp(angle, Number(slider.min), Number(slider.max));
       });
     }
@@ -1247,7 +1764,7 @@
       manualJointMode = !manualJointMode;
       const btn = document.getElementById('trackModeBtn'); const dot = document.getElementById('ikStatusDot');
       if (btn) {
-        btn.textContent = manualJointMode ? '수동 모드' : '추종 ON';
+        btn.textContent = manualJointMode ? '수동 조그' : '추종 ON';
         btn.className = manualJointMode ? 'px-2 py-0.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-[11px] font-bold transition whitespace-nowrap' : 'px-2 py-0.5 bg-teal-600 hover:bg-teal-700 text-white rounded text-[11px] font-bold transition whitespace-nowrap';
       }
       if (dot) dot.className = manualJointMode ? 'w-2 h-2 rounded-full bg-rose-500' : 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
@@ -1259,7 +1776,7 @@
       if (!manualJointMode) {
         manualJointMode = true;
         const btn = document.getElementById('trackModeBtn'); const dot = document.getElementById('ikStatusDot');
-        if (btn) { btn.textContent = '수동 모드'; btn.className = 'px-2 py-0.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-[11px] font-bold transition whitespace-nowrap'; }
+        if (btn) { btn.textContent = '수동 조그'; btn.className = 'px-2 py-0.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-[11px] font-bold transition whitespace-nowrap'; }
         if (dot) dot.className = 'w-2 h-2 rounded-full bg-rose-500';
       }
       applyJointAngles();
@@ -1320,6 +1837,8 @@
       if (sheetPointB) sheetPointB.position.copy(ptbVec);
       if (sheetSealingLine) updateSealingLineGeometry(sheetSealingLine, ptaVec, ptbVec, 1.0);
 
+      refreshICPPointCloudGeometry();
+
       if (masterGroup) {
         masterGroup.position.copy(masterOrigin);
         masterGroup.rotation.y = THREE.MathUtils.degToRad(ufParams.uf5_rz);
@@ -1332,6 +1851,25 @@
         }
       }
       applyStepTransforms(isAnimating ? animProgress : 1);
+
+      if (currentCameraMode === 'focus_ab') {
+        setCameraView('focus_ab', false);
+      }
+
+      checkToleranceStatus();
+      if (paramLogDebounceTimer) clearTimeout(paramLogDebounceTimer);
+      paramLogDebounceTimer = setTimeout(() => {
+        const tol = checkToleranceStatus();
+        const payload = getShiftPayloadString();
+        if (currentStep >= 6) {
+          appendPacketLog('RX', `LIVE_SHIFT_SYNC :: [${payload}]`);
+        } else {
+          appendPacketLog('SYS', `PARAM_UPDATED :: UF5(${ufParams.uf5_x.toFixed(1)},${ufParams.uf5_y.toFixed(1)},${ufParams.uf5_z.toFixed(1)}) | ${payload}`);
+        }
+        if (tol.isOver) {
+          appendPacketLog('WARN', `TOLERANCE_OVER :: Setting out of safe window! [${payload}]`);
+        }
+      }, 180);
     }
 
     function setUF5Rotation(deg) {
@@ -1358,9 +1896,9 @@
       document.getElementById('pt_len').value = rndSteps(0.8, 1.8, 0.2).toFixed(1);
       document.getElementById('pt_ang').value = rndSteps(-60, 60, 5);
       document.getElementById('ptb_z').value = rndSteps(-0.4, 1.0, 0.2).toFixed(1);
-      document.getElementById('uf6_dx').value = rndSteps(-1.00, 1.50, 0.25).toFixed(2);
-      document.getElementById('uf6_dy').value = rndSteps(-1.00, 1.50, 0.25).toFixed(2);
-      document.getElementById('uf6_dz').value = rndSteps(-0.75, 1.25, 0.25).toFixed(2);
+      document.getElementById('uf6_dx').value = rndSteps(-1.25, 1.50, 0.25).toFixed(2);
+      document.getElementById('uf6_dy').value = rndSteps(-1.25, 1.50, 0.25).toFixed(2);
+      document.getElementById('uf6_dz').value = rndSteps(-1.00, 1.25, 0.25).toFixed(2);
       document.getElementById('uf6_rx').value = Math.floor(Math.random() * 41) - 20;
       document.getElementById('uf6_ry').value = Math.floor(Math.random() * 41) - 20;
       document.getElementById('uf6_rz').value = Math.floor(Math.random() * 61) - 30;
@@ -1438,11 +1976,11 @@
 
       if (sheetMeshRef) {
         if (currentStep >= 8) {
-          const sheetOpacity = THREE.MathUtils.lerp(0.30, 0.50, t);
+          const sheetOpacity = THREE.MathUtils.lerp(0.22, 0.45, t);
           sheetMeshRef.material.opacity = sheetOpacity;
           if (sheetEdgeLinesRef) sheetEdgeLinesRef.material.opacity = THREE.MathUtils.lerp(0.45, 0.85, t);
         } else {
-          sheetMeshRef.material.opacity = 0.30;
+          sheetMeshRef.material.opacity = 0.22;
           if (sheetEdgeLinesRef) sheetEdgeLinesRef.material.opacity = 0.45;
         }
       }
@@ -1459,20 +1997,20 @@
       } else if (currentStep === 6) {
         const startPos = masterOrigin.clone(); const targetPos = masterOrigin.clone().add(dynamicSheetShift.pos);
         sheetGroup.position.lerpVectors(startPos, targetPos, t);
-        sheetGroup.rotation.x = dynamicSheetShift.rot.x * t; sheetGroup.rotation.y = masterRadY + (dynamicSheetShift.rot.y * t); sheetGroup.rotation.z = dynamicSheetShift.rot.z * t;
+        sheetGroup.quaternion.copy(getUF6WorldQuaternion(t));
         uf6DashedAxesGroup.visible = true; uf6SolidAxesGroup.visible = false;
         const fadeOpacity = THREE.MathUtils.lerp(0.95, 0.30, t);
         setGroupOpacity(uf6DashedAxesGroup, fadeOpacity);
       } else if (currentStep === 7) {
         const targetPos = masterOrigin.clone().add(dynamicSheetShift.pos);
         sheetGroup.position.copy(targetPos);
-        sheetGroup.rotation.set(dynamicSheetShift.rot.x, masterRadY + dynamicSheetShift.rot.y, dynamicSheetShift.rot.z);
+        sheetGroup.quaternion.copy(getUF6WorldQuaternion(1.0));
         uf6DashedAxesGroup.visible = true; uf6SolidAxesGroup.visible = false;
         setGroupOpacity(uf6DashedAxesGroup, 0.30);
       } else if (currentStep >= 8) {
         const targetPos = masterOrigin.clone().add(dynamicSheetShift.pos);
         sheetGroup.position.copy(targetPos);
-        sheetGroup.rotation.set(dynamicSheetShift.rot.x, masterRadY + dynamicSheetShift.rot.y, dynamicSheetShift.rot.z);
+        sheetGroup.quaternion.copy(getUF6WorldQuaternion(1.0));
         uf6DashedAxesGroup.visible = false; uf6SolidAxesGroup.visible = true;
         setGroupOpacity(uf6SolidAxesGroup, 1.0);
       }
@@ -1494,6 +2032,21 @@
         }
       }
 
+      if (currentStep === 4) {
+        if (t >= 0.28 && !stepSubLogFlags.step4_A) {
+          stepSubLogFlags.step4_A = true;
+          appendPacketLog('RX', `REC_POINT_A :: UF5_Local(${ufParams.pta_x.toFixed(2)}, ${ufParams.pta_y.toFixed(2)}, ${ufParams.pta_z.toFixed(2)}) Locked`);
+        }
+        if (t >= 0.76 && !stepSubLogFlags.step4_B) {
+          stepSubLogFlags.step4_B = true;
+          appendPacketLog('RX', `REC_POINT_B :: UF5_Local(${ufParams.ptb_x.toFixed(2)}, ${ufParams.ptb_y.toFixed(2)}, ${ufParams.ptb_z.toFixed(2)}) Locked`);
+        }
+      }
+      if (currentStep === 7 && t >= 0.22 && !stepSubLogFlags.step7_flash) {
+        stepSubLogFlags.step7_flash = true;
+        appendPacketLog('RX', `DI15=ON :: Multi-Flash Capturing Cloud -> [${getShiftPayloadString()}]`);
+      }
+
       scene.updateMatrixWorld(true);
 
       const masterPointAWorld = new THREE.Vector3(); masterPointA.getWorldPosition(masterPointAWorld);
@@ -1509,7 +2062,8 @@
       const aboveA_1m = masterPointAWorld.clone().add(upOneMeter);
       const aboveB_1m = masterPointBWorld.clone().add(upOneMeter);
 
-      let targetPos = new THREE.Vector3(); let targetRot = new THREE.Euler(0, 0, 0);
+      let targetPos = new THREE.Vector3(); 
+      let targetQuat = new THREE.Quaternion();
 
       const toBaseDisplay = (pos) => {
         const bx = pos.x - baseOriginPos.x; const by = baseOriginPos.z - pos.z; const bz = pos.y - baseOriginPos.y;
@@ -1517,63 +2071,98 @@
       };
 
       const cycleBanner = document.getElementById('cycleCompleteBanner');
-      if (cycleBanner) {
-        if (currentStep === 10 && t >= 0.82) cycleBanner.classList.add('show-banner');
-        else cycleBanner.classList.remove('show-banner');
+      const bannerBox = document.getElementById('cycleBannerBox');
+      const bannerIcon = document.getElementById('cycleBannerIcon');
+      const bannerSub = document.getElementById('cycleBannerSub');
+      const bannerTitle = document.getElementById('cycleBannerTitle');
+
+      if (cycleBanner && bannerBox) {
+        if (currentStep === 10 && t >= 0.80) {
+          if (isToleranceError) {
+            bannerBox.className = "bg-rose-50/95 backdrop-blur-md px-6 py-3 rounded-2xl border-2 border-rose-500 shadow-2xl flex items-center gap-3";
+            bannerIcon.className = "w-8 h-8 rounded-full bg-rose-600 text-white flex items-center justify-center text-base font-black shadow-xs";
+            bannerIcon.innerText = "✕";
+            bannerSub.className = "text-[10px] font-extrabold text-rose-600 tracking-widest uppercase";
+            bannerSub.innerText = "Interlock Tripped : Tolerance Over";
+            bannerTitle.className = "text-lg md:text-xl font-black text-rose-950 tracking-tight";
+            bannerTitle.innerText = "The work Fails!";
+          } else {
+            bannerBox.className = "bg-white/95 backdrop-blur-md px-6 py-3 rounded-2xl border-2 border-blue-500 shadow-2xl flex items-center gap-3";
+            bannerIcon.className = "w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-base font-black shadow-xs";
+            bannerIcon.innerText = "✓";
+            bannerSub.className = "text-[10px] font-extrabold text-blue-600 tracking-widest uppercase";
+            bannerSub.innerText = "1-Cycle Process Done";
+            bannerTitle.className = "text-lg md:text-xl font-black text-slate-900 tracking-tight";
+            bannerTitle.innerText = "Cycle Completed !!";
+          }
+          cycleBanner.classList.add('show-banner');
+        } else {
+          cycleBanner.classList.remove('show-banner');
+        }
       }
 
+      const qMasterRadY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), masterRadY);
+
       if (currentStep <= 1) {
-        targetPos.copy(homePos); targetRot.set(0, masterRadY, 0);
+        targetPos.copy(homePos); targetQuat.copy(qMasterRadY);
         if (lockOnBeam) lockOnBeam.material.opacity = 0.0;
         document.getElementById('targetCoord').innerText = (currentStep === 0) ? "시스템 홈 대기 (Home)" : "UF5 마스터 기준 생성";
         document.getElementById('pointA_UF').innerText = "미지정"; document.getElementById('pointB_UF').innerText = "미지정";
       } else if (currentStep === 2) {
-        targetPos.lerpVectors(homePos, readyPos, t); targetRot.set(0, masterRadY, 0);
+        interpolateMove(homePos, readyPos, t, { mode: 'P_SWING', swingHeight: 1.0, swingOut: 0.8 }, targetPos);
+        targetQuat.copy(qMasterRadY);
         if (lockOnBeam) lockOnBeam.material.opacity = 0.0;
-        document.getElementById('targetCoord').innerText = "중간 준비 위치 진입 중...";
+        document.getElementById('targetCoord').innerText = "중간 준비 위치 진입 중 (MOVE P)...";
         document.getElementById('pointA_UF').innerText = "미지정"; document.getElementById('pointB_UF').innerText = "미지정";
       } else if (currentStep === 3) {
-        targetPos.copy(readyPos); targetRot.set(0, masterRadY, 0);
+        targetPos.copy(readyPos); targetQuat.copy(qMasterRadY);
         if (lockOnBeam) lockOnBeam.material.opacity = 0.0;
         document.getElementById('targetCoord').innerText = "Point A/B 설정 대기";
         document.getElementById('pointA_UF').innerText = `(${ufParams.pta_x.toFixed(1)}, ${ufParams.pta_y.toFixed(1)}, ${ufParams.pta_z.toFixed(1)})`;
         document.getElementById('pointB_UF').innerText = `(${ufParams.ptb_x.toFixed(1)}, ${ufParams.ptb_y.toFixed(1)}, ${ufParams.ptb_z.toFixed(1)})`;
       } else if (currentStep === 4) {
-        targetRot.set(0, masterRadY, 0);
-        if (t <= 0.185) {
-          targetPos.lerpVectors(readyPos, masterPointAWorld, t / 0.185);
-          if (lockOnBeam) lockOnBeam.material.opacity = 0.5 * (t / 0.185);
-          document.getElementById('targetCoord').innerText = "Point A로 이동 중...";
-          document.getElementById('pointA_UF').innerText = "접근 중"; document.getElementById('pointB_UF').innerText = "대기";
-        } else if (t <= 0.338) {
+        targetQuat.copy(qMasterRadY);
+        if (t <= 0.14) {
+          interpolateMove(readyPos, aboveA_1m, t / 0.14, { mode: 'P_HOP', hopHeight: 0.35 }, targetPos);
+          if (lockOnBeam) lockOnBeam.material.opacity = 0.0;
+          document.getElementById('targetCoord').innerText = "Point A 상공(Z+1m)으로 진입 중 (MOVE P)...";
+          document.getElementById('pointA_UF').innerText = "상공 접근"; document.getElementById('pointB_UF').innerText = "대기";
+        } else if (t <= 0.27) {
+          const subT = (t - 0.14) / (0.27 - 0.14);
+          interpolateMove(aboveA_1m, masterPointAWorld, subT, { mode: 'L' }, targetPos);
+          if (lockOnBeam) lockOnBeam.material.opacity = 0.6 * subT;
+          document.getElementById('targetCoord').innerText = "Point A로 수직 하강 포인팅 중 (MOVE L)...";
+          document.getElementById('pointA_UF').innerText = "수직 하강 중"; document.getElementById('pointB_UF').innerText = "대기";
+        } else if (t <= 0.42) {
           targetPos.copy(masterPointAWorld);
           if (lockOnBeam) lockOnBeam.material.opacity = 1.0;
           document.getElementById('targetCoord').innerText = "📍 Point A 정밀 티칭 (1초 정지 기록)";
           document.getElementById('pointA_UF').innerText = "● A 티칭 완료!"; document.getElementById('pointB_UF').innerText = "대기";
-        } else if (t <= 0.446) {
-          targetPos.lerpVectors(masterPointAWorld, aboveA_1m, (t - 0.338) / (0.446 - 0.338));
+        } else if (t <= 0.52) {
+          interpolateMove(masterPointAWorld, aboveA_1m, (t - 0.42) / (0.52 - 0.42), { mode: 'L' }, targetPos);
           if (lockOnBeam) lockOnBeam.material.opacity = 0.0;
-          document.getElementById('targetCoord').innerText = "Point A 상공(Z+1m) 상승 중";
+          document.getElementById('targetCoord').innerText = "Point A 상공(Z+1m) 수직 상승 중 (MOVE L)";
           document.getElementById('pointA_UF').innerText = "● A 기록됨"; document.getElementById('pointB_UF').innerText = "이동 준비";
-        } else if (t <= 0.569) {
-          targetPos.lerpVectors(aboveA_1m, aboveB_1m, (t - 0.446) / (0.569 - 0.446));
+        } else if (t <= 0.64) {
+          interpolateMove(aboveA_1m, aboveB_1m, (t - 0.52) / (0.64 - 0.52), { mode: 'P_HOP', hopHeight: 0.4 }, targetPos);
           if (lockOnBeam) lockOnBeam.material.opacity = 0.0;
-          document.getElementById('targetCoord').innerText = "Point B 상공(Z+1m)으로 이동 중";
+          document.getElementById('targetCoord').innerText = "Point B 상공(Z+1m)으로 점프 이동 중 (MOVE P)";
           document.getElementById('pointA_UF').innerText = "● A 기록됨"; document.getElementById('pointB_UF').innerText = "상공 접근";
-        } else if (t <= 0.662) {
-          targetPos.lerpVectors(aboveB_1m, masterPointBWorld, (t - 0.569) / (0.662 - 0.569));
-          if (lockOnBeam) lockOnBeam.material.opacity = 0.5;
-          document.getElementById('targetCoord').innerText = "Point B로 하강 진입 중...";
-          document.getElementById('pointA_UF').innerText = "● A 기록됨"; document.getElementById('pointB_UF').innerText = "하강 중";
-        } else if (t <= 0.815) {
+        } else if (t <= 0.75) {
+          const subT = (t - 0.64) / (0.75 - 0.64);
+          interpolateMove(aboveB_1m, masterPointBWorld, subT, { mode: 'L' }, targetPos);
+          if (lockOnBeam) lockOnBeam.material.opacity = 0.6 * subT;
+          document.getElementById('targetCoord').innerText = "Point B로 수직 하강 포인팅 중 (MOVE L)...";
+          document.getElementById('pointA_UF').innerText = "● A 기록됨"; document.getElementById('pointB_UF').innerText = "수직 하강 중";
+        } else if (t <= 0.90) {
           targetPos.copy(masterPointBWorld);
           if (lockOnBeam) lockOnBeam.material.opacity = 1.0;
           document.getElementById('targetCoord').innerText = "📍 Point B 정밀 티칭 (1초 정지 기록)";
           document.getElementById('pointA_UF').innerText = "● A 기록됨"; document.getElementById('pointB_UF').innerText = "● B 티칭 완료!";
-        } else if (t <= 0.923) {
-          targetPos.lerpVectors(masterPointBWorld, aboveB_1m, (t - 0.815) / (0.923 - 0.815));
+        } else if (t <= 0.97) {
+          interpolateMove(masterPointBWorld, aboveB_1m, (t - 0.90) / (0.97 - 0.90), { mode: 'L' }, targetPos);
           if (lockOnBeam) lockOnBeam.material.opacity = 0.0;
-          document.getElementById('targetCoord').innerText = "Point B 상공(Z+1m) 상승 퇴피";
+          document.getElementById('targetCoord').innerText = "Point B 상공(Z+1m) 수직 상승 퇴피 (MOVE L)";
           document.getElementById('pointA_UF').innerText = "● A 기록됨"; document.getElementById('pointB_UF').innerText = "● B 기록됨";
         } else {
           targetPos.copy(aboveB_1m);
@@ -1582,37 +2171,37 @@
           document.getElementById('pointA_UF').innerText = "● A 기록됨"; document.getElementById('pointB_UF').innerText = "● B 기록됨";
         }
       } else if (currentStep === 5) {
-        targetRot.set(0, masterRadY, 0);
-        if (t <= 0.154) {
-          targetPos.copy(aboveB_1m);
+        targetQuat.copy(qMasterRadY);
+        if (t <= 0.12) {
+          interpolateMove(aboveB_1m, aboveA_1m, t / 0.12, { mode: 'P_HOP', hopHeight: 0.35 }, targetPos);
           if (lockOnBeam) lockOnBeam.material.opacity = 0.0;
-          document.getElementById('targetCoord').innerText = "선형 보간(MOVL) 검증 준비...";
-          document.getElementById('pointA_UF').innerText = "검증 대기"; document.getElementById('pointB_UF').innerText = "검증 대기";
+          document.getElementById('targetCoord').innerText = "선형 검증을 위해 Point A 상공(Z+1m) 이동...";
+          document.getElementById('pointA_UF').innerText = "상공 진입"; document.getElementById('pointB_UF').innerText = "검증 대기";
         } else if (t <= 0.346) {
-          const subT = (t - 0.154) / (0.346 - 0.154);
-          targetPos.lerpVectors(aboveB_1m, masterPointAWorld, subT);
+          const subT = (t - 0.12) / (0.346 - 0.12);
+          interpolateMove(aboveA_1m, masterPointAWorld, subT, { mode: 'L' }, targetPos);
           if (lockOnBeam) lockOnBeam.material.opacity = 0.8 * subT;
-          document.getElementById('targetCoord').innerText = "검증 시작점 Point A로 진입 중";
-          document.getElementById('pointA_UF').innerText = "진입 중"; document.getElementById('pointB_UF').innerText = "대기";
+          document.getElementById('targetCoord').innerText = "검증 시작점 Point A로 수직 하강 진입 (MOVE L)";
+          document.getElementById('pointA_UF').innerText = "수직 진입"; document.getElementById('pointB_UF').innerText = "대기";
         } else if (t <= 0.731) {
           const subT = (t - 0.346) / (0.731 - 0.346);
-          targetPos.lerpVectors(masterPointAWorld, masterPointBWorld, subT);
+          interpolateMove(masterPointAWorld, masterPointBWorld, subT, { mode: 'L' }, targetPos);
           if (lockOnBeam) lockOnBeam.material.opacity = 0.95;
-          document.getElementById('targetCoord').innerText = "✅ A → B 선형 이동(MOVL) 궤적 검증 중!";
+          document.getElementById('targetCoord').innerText = "✅ A → B 선형 이동(MOVE L) 궤적 검증 중!";
           document.getElementById('pointA_UF').innerText = "검증 통과"; document.getElementById('pointB_UF').innerText = `선형 주행 ${(subT * 100).toFixed(0)}%`;
         } else if (t <= 0.846) {
-          targetPos.lerpVectors(masterPointBWorld, aboveB_1m, (t - 0.731) / (0.846 - 0.731));
+          interpolateMove(masterPointBWorld, aboveB_1m, (t - 0.731) / (0.846 - 0.731), { mode: 'L' }, targetPos);
           if (lockOnBeam) lockOnBeam.material.opacity = 0.0;
-          document.getElementById('targetCoord').innerText = "선형 검증 완료 -> 상공 상승";
+          document.getElementById('targetCoord').innerText = "선형 검증 완료 -> 상공 수직 상승 (MOVE L)";
           document.getElementById('pointA_UF').innerText = "검증 완료"; document.getElementById('pointB_UF').innerText = "검증 완료";
         } else {
-          targetPos.lerpVectors(aboveB_1m, readyPos, (t - 0.846) / (1.0 - 0.846));
+          interpolateMove(aboveB_1m, readyPos, (t - 0.846) / (1.0 - 0.846), { mode: 'P_HOP', hopHeight: 0.5 }, targetPos);
           if (lockOnBeam) lockOnBeam.material.opacity = 0.0;
-          document.getElementById('targetCoord').innerText = "검증 마무리 -> 대기 위치(Ready) 복귀";
+          document.getElementById('targetCoord').innerText = "검증 마무리 -> 대기 위치(Ready) 복귀 (MOVE P)";
           document.getElementById('pointA_UF').innerText = "검증 완료"; document.getElementById('pointB_UF').innerText = "검증 완료";
         }
       } else if (currentStep >= 6 && currentStep <= 8) {
-        targetPos.copy(readyPos); targetRot.set(0, masterRadY, 0);
+        targetPos.copy(readyPos); targetQuat.copy(qMasterRadY);
         if (lockOnBeam) lockOnBeam.material.opacity = 0.0;
         if (currentStep === 6) {
           document.getElementById('targetCoord').innerText = "부품 인입 (스캐너 외곽 대기)";
@@ -1622,43 +2211,59 @@
           document.getElementById('pointA_UF').innerText = (t < 0.20) ? "좌측 프로젝터 투사" : "우측(ATM) 카메라 플래시!";
           document.getElementById('pointB_UF').innerText = (t < 0.20) ? "구조광 패턴 생성" : "3D 점군 고속 획득 중";
         } else if (currentStep === 8) {
-          document.getElementById('targetCoord').innerText = "UF6 및 A'B' 확정 완료";
-          document.getElementById('pointA_UF').innerText = "A' 위치 확정"; document.getElementById('pointB_UF').innerText = "B' 위치 확정";
+          document.getElementById('targetCoord').innerText = isToleranceError ? "⚠️ 오차 초과 감지 (비상 복귀 준비)" : "ICP 정합 수렴 및 UF6 확정 완료";
+          document.getElementById('pointA_UF').innerText = isToleranceError ? "허용오차 초과" : "A' 위치 확정";
+          document.getElementById('pointB_UF').innerText = isToleranceError ? "주행 차단됨" : "B' 위치 확정";
         }
       } else if (currentStep === 9) {
-        const sheetRot = new THREE.Euler(sheetGroup.rotation.x, sheetGroup.rotation.y, sheetGroup.rotation.z);
-        const normalUp = new THREE.Vector3(0, 0.85, 0).applyEuler(sheetRot);
-        const aboveA_Prime = sheetPointAWorld.clone().add(normalUp);
-
-        if (t <= 0.25) {
-          targetPos.lerpVectors(readyPos, aboveA_Prime, t / 0.25);
-          targetRot.set(sheetRot.x * (t / 0.25), THREE.MathUtils.lerp(masterRadY, sheetRot.y, t / 0.25), sheetRot.z * (t / 0.25));
-          document.getElementById('targetCoord').innerText = "보정 위치 A' 상공 접근";
-        } else if (t <= 0.45) {
-          targetPos.lerpVectors(aboveA_Prime, sheetPointAWorld, (t - 0.25) / 0.20);
-          targetRot.copy(sheetRot);
-          document.getElementById('targetCoord').innerText = "Point A' 법선 수직 진입";
+        if (isToleranceError) {
+          targetPos.copy(readyPos);
+          targetQuat.copy(qMasterRadY);
+          if (lockOnBeam) lockOnBeam.material.opacity = 0.0;
+          document.getElementById('targetCoord').innerText = "🛑 TOLERANCE OVER : 보정 주행 금지 (Safe Hold)";
+          document.getElementById('pointA_UF').innerText = "추종 거부"; document.getElementById('pointB_UF').innerText = "안전 모드";
         } else {
-          targetPos.lerpVectors(sheetPointAWorld, sheetPointBWorld, (t - 0.45) / 0.55);
-          targetRot.copy(sheetRot);
-          document.getElementById('targetCoord').innerText = "A' → B' 6-DOF 보정 주행 중!";
+          const qSheetFull = sheetGroup.quaternion.clone();
+          const normalUp = new THREE.Vector3(0, 1.0, 0).applyQuaternion(qSheetFull);
+          const aboveA_Prime = sheetPointAWorld.clone().add(normalUp);
+
+          if (t <= 0.25) {
+            const subT = t / 0.25;
+            interpolateMove(readyPos, aboveA_Prime, subT, { mode: 'P_HOP', hopHeight: 0.35 }, targetPos);
+            targetQuat.copy(qMasterRadY).slerp(qSheetFull, subT);
+            document.getElementById('targetCoord').innerText = "🔍 보정 위치 A' 상공(법선+1m) 접근";
+          } else if (t <= 0.45) {
+            interpolateMove(aboveA_Prime, sheetPointAWorld, (t - 0.25) / 0.20, { mode: 'L' }, targetPos);
+            targetQuat.copy(qSheetFull);
+            document.getElementById('targetCoord').innerText = "🔍 Point A' 법선 수직 하강 진입 (MOVE L)";
+          } else {
+            const subT = (t - 0.45) / 0.55;
+            interpolateMove(sheetPointAWorld, sheetPointBWorld, subT, { mode: 'L' }, targetPos);
+            targetQuat.copy(qSheetFull);
+            document.getElementById('targetCoord').innerText = `🔍 A' → B' 6-DOF 정밀 보정 주행 ${(subT * 100).toFixed(0)}%`;
+          }
+          if (lockOnBeam) lockOnBeam.material.opacity = t > 0.25 ? 0.95 : 0.95 * (t / 0.25);
+          document.getElementById('pointA_UF').innerText = "A' 정밀일치"; document.getElementById('pointB_UF').innerText = "B' 정밀일치";
         }
-        if (lockOnBeam) lockOnBeam.material.opacity = t > 0.25 ? 0.95 : 0.95 * (t / 0.25);
-        document.getElementById('pointA_UF').innerText = "A' 보정추종"; document.getElementById('pointB_UF').innerText = "B' 보정추종";
       } else if (currentStep === 10) {
-        const startPos = !isAnimating ? homePos : sheetPointBWorld;
-        targetPos.lerpVectors(startPos, homePos, t);
-        targetRot.set(sheetGroup.rotation.x * (1 - t), THREE.MathUtils.lerp(sheetGroup.rotation.y, masterRadY, t), sheetGroup.rotation.z * (1 - t));
+        const startPos = !isAnimating ? homePos : (isToleranceError ? readyPos : sheetPointBWorld);
+        const qSheetFull = sheetGroup.quaternion.clone();
+        interpolateMove(startPos, homePos, t, { mode: 'P_SWING', swingHeight: 1.0, swingOut: 0.8 }, targetPos);
+        targetQuat.copy(isToleranceError ? qMasterRadY : qSheetFull.slerp(qMasterRadY, t));
         if (lockOnBeam) lockOnBeam.material.opacity = 0.0;
-        document.getElementById('targetCoord').innerText = (t >= 0.85) ? "🏁 Cycle Completed !!" : "홈 위치(Home) 안전 복귀 중...";
-        document.getElementById('pointA_UF').innerText = "완료"; document.getElementById('pointB_UF').innerText = "완료";
+        document.getElementById('targetCoord').innerText = (t >= 0.85) 
+          ? (isToleranceError ? "🛑 The work Fails! (안전 홈 복귀)" : "🏁 Cycle Completed !! (작업 성공)") 
+          : "홈 위치(Home) 안전 스윙 복귀 중 (MOVE P)...";
+        document.getElementById('pointA_UF').innerText = isToleranceError ? "NG 종료" : "정상 완료";
+        document.getElementById('pointB_UF').innerText = isToleranceError ? "NG 종료" : "정상 완료";
       }
 
       robotGroup.position.copy(targetPos);
-      robotGroup.rotation.copy(targetRot);
-      updateRobotFullModel(targetPos, targetRot);
+      robotGroup.quaternion.copy(targetQuat);
+      updateRobotFullModel(targetPos, targetQuat);
       document.getElementById('toolCoord').innerText = toBaseDisplay(targetPos);
       updateJobViewerHighlight();
+      updateICPMiniView(t);
     }
 
     function updateStepUI() {
@@ -1675,6 +2280,12 @@
 
       document.getElementById('prevBtn').disabled = (currentStep === 0);
       document.getElementById('nextBtn').disabled = (currentStep === stepData.length - 1);
+
+      if (lastLoggedStep !== currentStep) {
+        lastLoggedStep = currentStep;
+        logStepScenarioPackets(currentStep);
+      }
+
       trigger3DAnimation();
     }
 
@@ -1683,8 +2294,9 @@
       let duration = 1000;
       if (currentStep === 4) duration = 6500;
       else if (currentStep === 5) duration = 5200;
-      else if (currentStep === 9) duration = 3600;
+      else if (currentStep === 9) duration = 3800;
       else if (currentStep === 7) duration = 3200;
+      else if (currentStep === 8) duration = 1800;
       else if (currentStep === 2 || currentStep === 10) duration = 2400;
 
       function stepAnim(now) {
@@ -1701,36 +2313,124 @@
       requestAnimationFrame(stepAnim);
     }
 
+    function updateCameraButtonHighlight(viewName) {
+      currentCameraMode = viewName;
+      document.querySelectorAll('.cam-preset-btn, .cam-focus-btn').forEach(btn => {
+        btn.classList.remove('active-cam');
+      });
+      const activeBtn = document.getElementById(`camBtn_${viewName}`);
+      if (activeBtn) activeBtn.classList.add('active-cam');
+    }
+
+    function setCameraView(view, animateCam = true) {
+      if (!controls || !camera) return;
+      updateCameraButtonHighlight(view);
+
+      const targetCamPos = new THREE.Vector3();
+      const targetLookAt = new THREE.Vector3();
+
+      if (view === 'iso') { 
+        targetCamPos.set(1.8, 6.2, 9.8); 
+        targetLookAt.set(1.2, 1.8, 0.4); 
+      }
+      else if (view === 'top') { 
+        targetCamPos.set(1.2, 11.5, 0.4); 
+        targetLookAt.set(1.2, 0.5, 0.4); 
+      }
+      else if (view === 'front') { 
+        targetCamPos.set(1.2, 2.5, 9.5); 
+        targetLookAt.set(1.2, 1.8, 0.4); 
+      }
+      else if (view === 'side') { 
+        targetCamPos.set(10.5, 2.5, 0.4); 
+        targetLookAt.set(1.2, 1.8, 0.4); 
+      }
+      else if (view === 'focus_ab') {
+        if (sheetGroup && masterGroup) {
+          if (currentStep >= 6) {
+            const targetSheetPos = masterOrigin.clone().add(dynamicSheetShift.pos);
+            sheetGroup.position.copy(targetSheetPos);
+            sheetGroup.quaternion.copy(getUF6WorldQuaternion(1.0));
+          }
+          scene.updateMatrixWorld(true);
+        }
+
+        const ptAWorld = new THREE.Vector3();
+        const ptBWorld = new THREE.Vector3();
+        if (currentStep >= 6 && sheetPointA && sheetPointB) {
+          sheetPointA.getWorldPosition(ptAWorld);
+          sheetPointB.getWorldPosition(ptBWorld);
+        } else if (masterPointA && masterPointB) {
+          masterPointA.getWorldPosition(ptAWorld);
+          masterPointB.getWorldPosition(ptBWorld);
+        } else {
+          ptAWorld.copy(masterOrigin);
+          ptBWorld.copy(masterOrigin).add(new THREE.Vector3(1.5, 0, -0.8));
+        }
+
+        const midAB = new THREE.Vector3().addVectors(ptAWorld, ptBWorld).multiplyScalar(0.5);
+        const spanLen = ptAWorld.distanceTo(ptBWorld);
+        const distFactor = Math.max(1.85, spanLen * 1.15);
+
+        targetLookAt.copy(midAB).add(new THREE.Vector3(0, 0.12, 0));
+        targetCamPos.copy(midAB).add(new THREE.Vector3(distFactor * 0.62, distFactor * 0.85, distFactor * 1.22));
+      }
+
+      if (!animateCam) {
+        camTransition.active = false;
+        camera.position.copy(targetCamPos);
+        controls.target.copy(targetLookAt);
+        controls.update();
+        return;
+      }
+
+      camTransition.active = true;
+      camTransition.startTime = performance.now();
+      camTransition.duration = 620;
+      camTransition.startPos.copy(camera.position);
+      camTransition.endPos.copy(targetCamPos);
+      camTransition.startTarget.copy(controls.target);
+      camTransition.endTarget.copy(targetLookAt);
+    }
+
     function goToStep(idx) {
       manualJointMode = false;
       const btn = document.getElementById('trackModeBtn'); const dot = document.getElementById('ikStatusDot');
       if (btn) { btn.textContent = '추종 ON'; btn.className = 'px-2 py-0.5 bg-teal-600 hover:bg-teal-700 text-white rounded text-[11px] font-bold transition whitespace-nowrap'; }
       if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
-      currentStep = idx; updateStepUI();
+      
+      currentStep = idx;
+      updateStepUI();
+
+      if (currentStep === 9 && !isToleranceError) {
+        setCameraView('focus_ab');
+      }
+      else if (currentStep === 10) {
+        setCameraView('iso');
+      }
     }
 
     function nextStep() { if (currentStep < stepData.length - 1) goToStep(currentStep + 1); }
     function prevStep() { if (currentStep > 0) goToStep(currentStep - 1); }
-
-    function setCameraView(view) {
-      if (!controls) return;
-      if (view === 'iso') { camera.position.set(2.8, 11.5, 18.0); controls.target.set(0.0, 2.3, 0.2); }
-      else if (view === 'top') { camera.position.set(0.2, 21.0, 0.0); controls.target.set(0.2, 0.5, 0.0); }
-      else if (view === 'front') { camera.position.set(0.2, 3.8, 16.5); controls.target.set(0.2, 2.3, 0.0); }
-      else if (view === 'side') { camera.position.set(16.5, 3.8, 0.0); controls.target.set(0.2, 2.3, 0.0); }
-      controls.update();
-    }
 
     function scheduleNextAutoStep() {
       if (!autoPlayTimer) return;
       let waitTime = 4200;
       if (currentStep === 4) waitTime = 7200;
       else if (currentStep === 5) waitTime = 5900;
+      else if (currentStep === 10) waitTime = 3000;
 
       autoPlayTimer = setTimeout(() => {
         if (!autoPlayTimer) return;
-        if (currentStep < stepData.length - 1) goToStep(currentStep + 1); else goToStep(0);
-        scheduleNextAutoStep();
+        if (currentStep < stepData.length - 1) {
+          goToStep(currentStep + 1);
+          scheduleNextAutoStep();
+        } else {
+          clearTimeout(autoPlayTimer);
+          autoPlayTimer = null;
+          document.getElementById('playIcon').innerText = "▶";
+          document.getElementById('playText').innerText = "자동 재생";
+        }
       }, waitTime);
     }
 
@@ -1739,29 +2439,61 @@
         clearTimeout(autoPlayTimer); autoPlayTimer = null;
         document.getElementById('playIcon').innerText = "▶"; document.getElementById('playText').innerText = "자동 재생";
       } else {
+        if (currentStep === stepData.length - 1) {
+          clearPacketLogs("New Auto-Cycle Started. Previous logs cleared.");
+          lastLoggedStep = -1;
+          goToStep(0);
+          setCameraView('iso');
+        }
         document.getElementById('playIcon').innerText = "⏸"; document.getElementById('playText').innerText = "일시 정지";
         autoPlayTimer = true; scheduleNextAutoStep();
       }
     }
 
+    // [요청2 핵심 구현] 공정 단계 제어의 '초기화' 버튼 클릭 시 1-Cycle 완전 종료 및 새 기동을 위해 TCP 패킷 로그도 함께 자동 클리어
     function resetSimulation() {
       if (autoPlayTimer) toggleAutoPlay();
-      goToStep(0); setCameraView('iso');
+      clearPacketLogs("Cycle Reset :: Ready for a new operation sequence.");
+      lastLoggedStep = -1;
+      goToStep(0);
+      setCameraView('iso');
     }
 
     function onWindowResize() {
       const container = document.getElementById('canvas-container');
       const width = Math.max(300, container.clientWidth);
       const height = Math.max(300, container.clientHeight);
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-      renderer.setSize(width, height);
+      camera.aspect = width / height; camera.updateProjectionMatrix(); renderer.setSize(width, height);
+
+      if (icpRenderer && icpCamera) {
+        const icpContainer = document.getElementById('icpCanvasContainer');
+        if (icpContainer && icpContainer.clientWidth > 0) {
+          icpCamera.aspect = icpContainer.clientWidth / icpContainer.clientHeight;
+          icpCamera.updateProjectionMatrix();
+          icpRenderer.setSize(icpContainer.clientWidth, icpContainer.clientHeight);
+        }
+      }
     }
 
     function animate() {
       requestAnimationFrame(animate);
+
+      if (camTransition.active && camera && controls) {
+        const elapsed = performance.now() - camTransition.startTime;
+        const rawT = Math.min(1.0, elapsed / camTransition.duration);
+        const easeT = 1.0 - Math.pow(1.0 - rawT, 3);
+
+        camera.position.lerpVectors(camTransition.startPos, camTransition.endPos, easeT);
+        controls.target.lerpVectors(camTransition.startTarget, camTransition.endTarget, easeT);
+
+        if (rawT >= 1.0) {
+          camTransition.active = false;
+        }
+      }
+
       if (controls) controls.update();
       if (!isAnimating) applyStepTransforms(1);
+      else if (currentStep === 7 || currentStep === 8) updateICPMiniView(animProgress);
       renderer.render(scene, camera);
     }
 
