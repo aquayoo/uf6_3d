@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>UF5 & UF6 위치보정 3D Simulator V6.6</title>
+  <title>UF5 & UF6 위치보정 3D Simulator V7.1</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Three.js & OrbitControls CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -120,7 +120,7 @@
     }
     #cycleCompleteBanner.show-banner {
       opacity: 1 !important;
-      transform: translate(-50%, 0) scale(1) !important;
+      transform: translateY(0) scale(1) !important;
     }
 
     ::-webkit-scrollbar {
@@ -132,9 +132,9 @@
       border-radius: 4px;
     }
 
-    /* 시인성 개선: 그레이 테마 스크롤바 */
     #packetLogList::-webkit-scrollbar {
       width: 6px;
+      height: 6px;
     }
     #packetLogList::-webkit-scrollbar-track {
       background: #e2e8f0;
@@ -160,13 +160,12 @@
   <!-- Header Section -->
   <header class="w-full bg-white rounded-xl shadow-xs border border-slate-200 px-4 py-1.5 flex items-center justify-between shrink-0 mb-1.5">
     <div class="flex items-center gap-2.5">
-      <!-- [버전 표시창: 요청1 반영 - beta 문구 완전 배제 및 NOV.01 표기] (필요시 V4.5로 변경 가능) -->
       <div class="bg-blue-600 text-white px-2.5 py-0.5 rounded-md shadow-xs flex items-center justify-center gap-1 leading-none">
-        <span class="text-xs font-black">V6.6</span>
+        <span class="text-xs font-black">V7.1</span>
         <span class="text-[10px] font-bold text-blue-100">(NOV.01)</span>
       </div>
       <h1 class="text-sm md:text-base font-extrabold text-slate-900 tracking-tight whitespace-nowrap">
-        UF5 & UF6 위치보정 3D Simulator
+        UF5[REF] & UF6[Work] 위치보정 3D Simulator
       </h1>
     </div>
 
@@ -184,7 +183,7 @@
     
     <div id="canvas-container" class="w-full h-full cursor-grab active:cursor-grabbing relative">
       
-      <!-- 상단 카메라 뷰 프리셋 (🔍 가공선 Focus 버튼 포함) -->
+      <!-- 상단 카메라 뷰 프리셋 -->
       <div class="absolute top-2.5 left-[222px] flex items-center gap-1.5 bg-white/95 backdrop-blur-md p-1.5 rounded-xl border border-slate-300 text-xs z-10 shadow-sm">
         <button id="camBtn_iso" onclick="setCameraView('iso')" class="cam-preset-btn active-cam px-2.5 py-1 bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-700 rounded-lg transition font-bold border border-slate-200">입체(ISO)</button>
         <button id="camBtn_top" onclick="setCameraView('top')" class="cam-preset-btn px-2.5 py-1 bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-700 rounded-lg transition font-bold border border-slate-200">평면도(Top)</button>
@@ -194,7 +193,22 @@
           <span>🔍</span>
           <span>가공선(Focus)</span>
         </button>
+        <button id="btnToggleTrail" onclick="toggleTrajectoryTrail()" class="px-2 py-1 bg-emerald-100 text-emerald-800 rounded-lg transition font-extrabold border border-emerald-400 flex items-center gap-1 shadow-2xs" title="로봇 TCP 주행 궤적 잔상(Ribbon Trail) 표시">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+          <span>궤적 Trail</span>
+        </button>
         <button onclick="toggleJobViewer()" id="jobToggleNavBtn" class="ml-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-black shadow-xs">TP JOB CLOSE</button>
+      </div>
+
+      <!-- [요청1 반영] 작업 완료/실패 동적 배지: 오른쪽 UF5 파라미터 설정창의 왼쪽 위(right-[322px] top-3)로 이동 -->
+      <div id="cycleCompleteBanner" class="pointer-events-none absolute top-3 right-[322px] z-30 opacity-0 -translate-y-2 scale-95 flex flex-col items-end">
+        <div id="cycleBannerBox" class="bg-white/95 backdrop-blur-md px-5 py-2.5 rounded-2xl border-2 border-blue-500 shadow-xl flex items-center gap-3">
+          <span id="cycleBannerIcon" class="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center text-sm font-black shadow-xs">✓</span>
+          <div class="flex flex-col">
+            <span id="cycleBannerSub" class="text-[9.5px] font-extrabold text-blue-600 tracking-widest uppercase">1-Cycle Process Done</span>
+            <span id="cycleBannerTitle" class="text-base md:text-lg font-black text-slate-900 tracking-tight leading-tight">Cycle Completed !!</span>
+          </div>
+        </div>
       </div>
 
       <!-- 좌측 영역 -->
@@ -330,7 +344,7 @@
 
       </div>
 
-      <!-- 우측 영역 -->
+      <!-- [요청4 반영] 우측 영역: 1. 파라미터 설정 -> 2. Teaching JOB -> 3. 화이트 테마 ICP 카드 -->
       <div class="absolute top-2.5 right-2.5 w-[305px] z-20 flex flex-col gap-2 max-h-[96%] overflow-y-auto pl-0.5">
         
         <!-- 1. UF5 ORG 설정 패널 -->
@@ -345,6 +359,22 @@
               <button onclick="resetParams()" class="px-2.5 py-0.5 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded text-[11px] font-bold transition whitespace-nowrap" title="파라미터 초기화">Reload</button>
               <button id="btnTogglePanel" onclick="toggleParamPanel()" class="px-2.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-[11px] font-bold whitespace-nowrap">CLOSE</button>
             </div>
+          </div>
+
+          <!-- 현장 교육용 시나리오 프리셋 4종 버튼 바 (항상 노출되어 원클릭 테스트 지원) -->
+          <div class="grid grid-cols-4 gap-1 p-1 bg-slate-100 rounded-lg border border-slate-200 mb-1.5 text-[10.5px] font-bold shrink-0">
+            <button type="button" onclick="applyPresetCase('A')" class="py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded shadow-2xs transition truncate" title="표준 정상 보정 (모든 오차 허용범위 내)">
+              ① 표준정상
+            </button>
+            <button type="button" onclick="applyPresetCase('B')" class="py-1 bg-rose-600 hover:bg-rose-700 text-white rounded shadow-2xs transition truncate" title="Z축 침하/들뜸 불량 (dZ 과다 오차 초과)">
+              ② Z침하NG
+            </button>
+            <button type="button" onclick="applyPresetCase('C')" class="py-1 bg-amber-600 hover:bg-amber-700 text-white rounded shadow-2xs transition truncate" title="부품 3D 롤/피치 비틀림 (Rx, Ry 경사 복합)">
+              ③ 3D비틀림
+            </button>
+            <button type="button" onclick="applyPresetCase('D')" class="py-1 bg-purple-600 hover:bg-purple-700 text-white rounded shadow-2xs transition truncate" title="지그 미체결 요 회전 (Rz 극단 오차 초과)">
+              ④ 회전이탈
+            </button>
           </div>
 
           <div id="paramPanelContent" class="space-y-1.5 text-xs">
@@ -421,35 +451,7 @@
           </div>
         </div>
 
-        <!-- 1.5. 3D 포인트 클라우드(ICP) 미니 뷰 카드 -->
-        <div id="icpMiniViewCard" class="hidden icp-card-enter bg-slate-900/95 backdrop-blur-md p-2.5 rounded-xl shadow-xl border border-blue-500/40 text-xs flex-col gap-1.5 shrink-0">
-          <div class="flex items-center justify-between border-b border-slate-700/80 pb-1">
-            <div class="flex items-center gap-1.5 font-extrabold text-white text-[11px] whitespace-nowrap">
-              <span class="w-2 h-2 rounded-full bg-orange-500 animate-ping" id="icpStatusDot"></span>
-              <span>3D Point Cloud (ICP 정합)</span>
-            </div>
-            <span id="icpStateBadge" class="px-1.5 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-400/30 rounded text-[10px] font-mono font-bold">
-              SCANNING
-            </span>
-          </div>
-
-          <div class="relative w-full h-[135px] bg-slate-950 rounded-lg border border-slate-800 overflow-hidden">
-            <div id="icpCanvasContainer" class="w-full h-full"></div>
-            <div class="absolute top-1.5 left-2 flex flex-col gap-0.5 text-[10px] font-mono pointer-events-none">
-              <div class="flex items-center gap-1 text-blue-400 font-bold">
-                <span class="w-2 h-2 rounded-full bg-[#2563eb] inline-block"></span>Master (UF5)
-              </div>
-              <div class="flex items-center gap-1 text-orange-400 font-bold">
-                <span class="w-2 h-2 rounded-full bg-[#ea580c] inline-block"></span>Measured (UF6)
-              </div>
-            </div>
-            <div class="absolute bottom-1.5 right-2 bg-black/75 px-2 py-0.5 rounded border border-slate-700 text-[10px] font-mono text-slate-300 pointer-events-none">
-              RMSE: <span id="icpRmseVal" class="text-emerald-400 font-extrabold">0.000</span> m
-            </div>
-          </div>
-        </div>
-
-        <!-- 2. 티칭 펜던트 뷰어 -->
+        <!-- 2. 티칭 펜던트 뷰어 (파라미터 창 바로 아래 위치) -->
         <div id="jobViewerDrawer" class="bg-white/95 backdrop-blur-md p-2.5 rounded-xl shadow-lg border border-slate-300 flex flex-col text-xs shrink-0">
           <div class="flex items-center justify-between border-b border-slate-200 pb-1.5 mb-1.5">
             <div class="flex items-center gap-1.5 font-black text-slate-900 text-xs whitespace-nowrap">
@@ -500,46 +502,122 @@
           </div>
         </div>
 
-      </div>
-
-      <!-- 작업 완료/실패 동적 배지 (중앙 상단) -->
-      <div id="cycleCompleteBanner" class="pointer-events-none absolute top-[58px] left-1/2 -translate-x-1/2 z-30 opacity-0 translate-y-2 scale-95 flex flex-col items-center">
-        <div id="cycleBannerBox" class="bg-white/95 backdrop-blur-md px-6 py-3 rounded-2xl border-2 border-blue-500 shadow-2xl flex items-center gap-3">
-          <span id="cycleBannerIcon" class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-base font-black shadow-xs">✓</span>
-          <div class="flex flex-col">
-            <span id="cycleBannerSub" class="text-[10px] font-extrabold text-blue-600 tracking-widest uppercase">1-Cycle Process Done</span>
-            <span id="cycleBannerTitle" class="text-lg md:text-xl font-black text-slate-900 tracking-tight">Cycle Completed !!</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 하단 중앙: 시인성 극대화 슬레이트-그레이 통신 패킷 로그 터미널 -->
-      <div id="packetTerminal" class="absolute bottom-2.5 left-1/2 -translate-x-1/2 w-[520px] max-w-[calc(100vw-540px)] bg-slate-100/95 backdrop-blur-md rounded-xl border border-slate-300 shadow-2xl z-20 flex flex-col overflow-hidden text-xs">
-        <div class="bg-slate-200 px-3 py-1.5 border-b border-slate-300 flex items-center justify-between shrink-0">
-          <div class="flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-emerald-600" id="termStatusDot"></span>
-            <span class="font-mono font-extrabold text-[11px] text-slate-800 tracking-tight">
-              TCP/IP PACKET LOG <span class="text-slate-500 font-normal">(Hi6 ⇄ AITZ 3DU)</span>
+        <!-- 3. [요청2 & 요청4 반영] 화이트/라이트 테마로 통일된 3D 포인트 클라우드(ICP) 미니 뷰 카드 (TP 창 아래 위치) -->
+        <div id="icpMiniViewCard" class="hidden icp-card-enter bg-white/95 backdrop-blur-md p-2.5 rounded-xl shadow-lg border border-slate-300 text-xs flex-col gap-1.5 shrink-0">
+          <div class="flex items-center justify-between border-b border-slate-200 pb-1">
+            <div class="flex items-center gap-1.5 font-black text-slate-900 text-[11px] whitespace-nowrap">
+              <span class="w-2 h-2 rounded-full bg-orange-500 animate-ping" id="icpStatusDot"></span>
+              <span>3D Point Cloud (ICP 정합)</span>
+            </div>
+            <span id="icpStateBadge" class="px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-[10px] font-mono font-bold">
+              SCANNING
             </span>
           </div>
-          <div class="flex items-center gap-2">
-            <span id="tolStatusBadge" class="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded text-[10px] font-mono font-bold">
-              TOL: OK
-            </span>
-            <button onclick="clearPacketLogs()" class="px-2 py-0.5 bg-white hover:bg-slate-50 text-slate-700 rounded text-[10px] font-mono font-bold border border-slate-300 shadow-2xs transition" title="로그 지우기">
-              CLEAR
-            </button>
+
+          <div class="relative w-full h-[135px] bg-slate-100 rounded-lg border border-slate-200 overflow-hidden">
+            <div id="icpCanvasContainer" class="w-full h-full"></div>
+            <div class="absolute top-1.5 left-2 flex flex-col gap-0.5 text-[10px] font-mono pointer-events-none">
+              <div class="flex items-center gap-1 text-blue-700 font-extrabold">
+                <span class="w-2 h-2 rounded-full bg-[#2563eb] inline-block"></span>Master (UF5)
+              </div>
+              <div class="flex items-center gap-1 text-orange-600 font-extrabold">
+                <span class="w-2 h-2 rounded-full bg-[#ea580c] inline-block"></span>Measured (UF6)
+              </div>
+            </div>
+            <div class="absolute bottom-1.5 right-2 bg-white/90 px-2 py-0.5 rounded border border-slate-300 text-[10px] font-mono text-slate-700 shadow-2xs pointer-events-none">
+              RMSE: <span id="icpRmseVal" class="text-emerald-600 font-extrabold">0.000</span> m
+            </div>
           </div>
         </div>
-        <div id="packetLogList" class="h-[96px] overflow-y-auto px-3 py-2 font-mono text-[11px] space-y-1 select-text bg-slate-50">
-          <div class="text-slate-600">[SYS] Hi6 Controller ⇄ AITZ 3DU[3DM] Vision Socket Ready (Port: 5000)</div>
-        </div>
+
       </div>
 
-    </div>
+      <!-- [요청2 & 요청3 반영] 하단 영역 통합 바: 좌측 넓은 TCP/IP 로그 창 + 우측 화이트 테마 6-DOF 카드 (높이 h-[136px] 통일 및 우측 창과 비간섭) -->
+      <!-- [V7.1 최종] 하단 통합 바: 좌측 넓은 TCP/IP 로그 창 + 우측 단정한 6-DOF 카드 (높이 h-[136px] 완벽 통일) -->
+    <!-- [V7.1 최종] 하단 플로팅 바: 좌측 넓은 TCP/IP 로그 창 + 우측 단정한 6-DOF 카드 -->
+      <div class="absolute bottom-[46px] left-[222px] right-[320px] z-20 flex items-stretch gap-2 pointer-events-none">
+        
+        <!-- 좌측: 가로 폭을 확장한 TCP/IP 패킷 로그 터미널 -->
+        <div id="packetTerminal" class="pointer-events-auto flex-1 min-w-0 h-[136px] bg-white/95 backdrop-blur-md rounded-xl border border-slate-300 shadow-xl flex flex-col overflow-hidden text-xs">
+          <div class="bg-slate-100 px-3 py-1.5 border-b border-slate-200 flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-600" id="termStatusDot"></span>
+              <span class="font-mono font-extrabold text-[11px] text-slate-800 tracking-tight">
+                TCP/IP PACKET LOG <span class="text-slate-500 font-normal">(Hi6 ⇄ AITZ 3DU)</span>
+              </span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span id="tolStatusBadge" class="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded text-[10px] font-mono font-bold">
+                TOL: OK
+              </span>
+              <button onclick="clearPacketLogs()" class="px-2 py-0.5 bg-white hover:bg-slate-50 text-slate-700 rounded text-[10px] font-mono font-bold border border-slate-300 shadow-2xs transition" title="로그 지우기">
+                CLEAR
+              </button>
+            </div>
+          </div>
+          <div id="packetLogList" class="flex-1 overflow-y-auto overflow-x-auto px-3 py-1.5 font-mono text-[9.5px] space-y-0.5 select-text bg-slate-50/90">
+            <div class="text-slate-600 whitespace-nowrap">[SYS] Hi6 Controller ⇄ AITZ 3DU[3DM] Vision Socket Ready (Port: 5000)</div>
+          </div>
+        </div>
 
-    <!-- 하단 통합 바 -->
-    <div class="bg-slate-50 border-t border-slate-200 px-4 py-1.5 flex items-center justify-between gap-3 shrink-0">
+        <!-- 우측: 폰트 굵기 완화 및 단일 카드로 정상 결합된 6-DOF 오차 분석 미니 대시보드 -->
+        <div id="diffDashboardCard" class="pointer-events-auto hidden icp-card-enter w-[320px] h-[136px] bg-white/95 backdrop-blur-md p-2.5 rounded-xl shadow-xl border border-slate-300 text-xs flex flex-col justify-between shrink-0">
+          <div class="flex items-center justify-between border-b border-slate-200 pb-1 shrink-0">
+            <div class="flex items-center gap-1.5 font-bold text-slate-800 text-[11px] whitespace-nowrap">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>6-DOF 보정 전/후 오차 분석</span>
+            </div>
+            <span id="dashStatusBadge" class="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[9.5px] font-mono font-semibold">
+              COMPENSATED
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-1.5 text-[10px] font-mono my-auto">
+            <!-- 보정 미적용 시 오차 (UF5 기준) -->
+            <div class="bg-rose-50/70 px-2 py-1 rounded border border-rose-200 flex flex-col justify-between">
+              <span class="text-rose-700 font-bold text-[9px]">[보정 미적용 오차]</span>
+              <div class="flex items-baseline justify-between gap-1 mt-0.5">
+                <span class="text-slate-500 text-[9px]">ΔD:</span>
+                <span id="dashDistErr" class="text-rose-600 font-bold text-[10.5px] leading-none">0.0 mm</span>
+              </div>
+              <div class="flex items-baseline justify-between gap-1 mt-0.5">
+                <span class="text-slate-500 text-[9px]">ΔΘ:</span>
+                <span id="dashRotErr" class="text-rose-600 font-bold text-[10.5px] leading-none">0.00°</span>
+              </div>
+            </div>
+
+            <!-- UF6 보정 적용 후 -->
+            <div class="bg-emerald-50/70 px-2 py-1 rounded border border-emerald-200 flex flex-col justify-between">
+              <span class="text-emerald-800 font-bold text-[9px]">[UF6 보정 주행]</span>
+              <div class="flex items-baseline justify-between gap-1 mt-0.5">
+                <span class="text-slate-500 text-[9px]">잔류:</span>
+                <span id="dashCompDist" class="text-emerald-700 font-bold text-[10.5px] leading-none">0.00 mm</span>
+              </div>
+              <div class="flex items-baseline justify-between gap-1 mt-0.5">
+                <span class="text-slate-500 text-[9px]">법선:</span>
+                <span id="dashCompAlign" class="text-emerald-700 font-bold text-[10.5px] leading-none">100.0%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 정밀도 게이지 바 -->
+          <div class="bg-slate-100 px-2 py-1 rounded border border-slate-200 flex flex-col gap-0.5 shrink-0">
+            <div class="flex justify-between text-[9px] font-mono text-slate-600 leading-none">
+              <span class="font-medium">Path Tracking Accuracy</span>
+              <span id="dashAccuracyVal" class="text-emerald-700 font-bold">100.0% (Exact)</span>
+            </div>
+            <div class="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+              <div id="dashAccuracyBar" class="h-full bg-emerald-500 transition-all duration-300" style="width: 100%;"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div><!-- ◀◀◀ [핵심] canvas-container를 여기서 확실하게 닫아줍니다! -->
+
+    <!-- 하단 통합 바: 회사 로고 + 단계 설명 박스 + 메일 링크 -->
+    <div class="bg-slate-50 border-t border-slate-200 px-4 py-1.5 flex items-center justify-between gap-3 shrink-0 z-30">
       
       <a href="http://www.atmc.co.kr" target="_blank" rel="noopener noreferrer" 
          class="flex items-center bg-white hover:bg-slate-100 px-3 py-1 rounded-lg border border-slate-300 hover:border-blue-400 shadow-2xs shrink-0 transition-all cursor-pointer group"
@@ -566,7 +644,7 @@
         </div>
       </div>
 
-      <a href="mailto:jaekwang.yoo@atmc.co.kr?subject=%5BAT%20Simulator%20V6.5%20Feedback%5D" 
+      <a href="mailto:jaekwang.yoo@atmc.co.kr?subject=%5BAT%20Simulator%20V7.1%20Feedback%5D" 
          class="bg-white hover:bg-blue-50 px-3.5 py-1 rounded-lg border border-slate-300 hover:border-blue-400 text-xs font-bold text-slate-700 hover:text-blue-700 shadow-2xs shrink-0 flex items-center gap-2 transition-all cursor-pointer"
          title="교육관에게 피드백 이메일 보내기">
         <span class="text-blue-600 text-sm">✍️</span>
@@ -575,7 +653,7 @@
 
     </div>
 
-  </main>
+  </main>  
 
   <script>
     const stepData = [
@@ -721,6 +799,11 @@
     };
 
     let isToleranceError = false;
+    let showTrail = true;
+    let trajectoryMesh = null;
+    let trajectoryPoints = [];
+    const MAX_TRAIL_POINTS = 300;
+    const TRAIL_RADIUS = 0.016;
     let packetSeqNo = 1;
     let paramLogDebounceTimer = null;
     let lastLoggedStep = -1;
@@ -770,34 +853,37 @@
       return { isOver, isDxNg, isDyNg, isDzNg, isRxNg, isRyNg, isRzNg };
     }
 
+    // [요청3 반영] 각 시간별 로그 내용이 줄바꿈 없이 한 행으로 깔끔하게 출력되도록 whitespace-nowrap 적용
     function appendPacketLog(type, message) {
       const listEl = document.getElementById('packetLogList');
       if (!listEl) return;
 
       const row = document.createElement('div');
-      row.className = "leading-tight break-all flex items-start gap-1.5";
+      row.className = "leading-snug whitespace-nowrap flex items-center gap-1.5";
 
       const timeStr = getFormattedTimestamp();
       const seqStr = String(packetSeqNo++).padStart(3, '0');
 
+// [기존 코드에서 볼드체 완화 및 기본 서체 적용]
       let tagHtml = '';
-      let msgColorClass = 'text-slate-900 font-semibold';
+      let msgColorClass = 'text-slate-800 font-normal';
 
       if (type === 'TX') {
-        tagHtml = `<span class="text-emerald-700 font-extrabold shrink-0">[TX #${seqStr}]</span>`;
-        msgColorClass = 'text-emerald-950 font-bold';
+        tagHtml = `<span class="text-emerald-700 font-bold shrink-0">[TX #${seqStr}]</span>`;
+        msgColorClass = 'text-emerald-900 font-medium';
       } else if (type === 'RX') {
-        tagHtml = `<span class="text-amber-700 font-extrabold shrink-0">[RX #${seqStr}]</span>`;
-        msgColorClass = 'text-amber-950 font-bold';
+        tagHtml = `<span class="text-amber-700 font-bold shrink-0">[RX #${seqStr}]</span>`;
+        msgColorClass = 'text-amber-900 font-medium';
       } else if (type === 'WARN') {
-        tagHtml = `<span class="text-rose-600 font-black shrink-0">[WARN #${seqStr}]</span>`;
-        msgColorClass = 'text-rose-950 font-black';
+        tagHtml = `<span class="text-rose-600 font-bold shrink-0">[WARN #${seqStr}]</span>`;
+        msgColorClass = 'text-rose-900 font-semibold';
       } else {
-        tagHtml = `<span class="text-blue-700 font-bold shrink-0">[SYS #${seqStr}]</span>`;
-        msgColorClass = 'text-slate-800 font-semibold';
+        tagHtml = `<span class="text-blue-700 font-semibold shrink-0">[SYS #${seqStr}]</span>`;
+        msgColorClass = 'text-slate-700 font-normal';
       }
 
-      row.innerHTML = `<span class="text-slate-900 font-mono font-bold shrink-0">[${timeStr}]</span>${tagHtml}<span class="${msgColorClass}">${message}</span>`;
+      // 타임스탬프 굵기 완화 (font-bold -> font-medium)
+      row.innerHTML = `<span class="text-slate-600 font-mono font-medium shrink-0">[${timeStr}]</span>${tagHtml}<span class="${msgColorClass}">${message}</span>`;
       listEl.appendChild(row);
 
       while (listEl.children.length > 120) {
@@ -817,7 +903,7 @@
       if (!listEl) return;
       packetSeqNo = 1;
       const noticeMsg = customNotice || "Terminal log cleared by operator. Standby.";
-      listEl.innerHTML = `<div class="text-slate-700 font-bold">[${getFormattedTimestamp()}] [SYS] ${noticeMsg}</div>`;
+      listEl.innerHTML = `<div class="text-slate-700 font-bold whitespace-nowrap">[${getFormattedTimestamp()}] [SYS] ${noticeMsg}</div>`;
     }
 
     function logStepScenarioPackets(stepIdx) {
@@ -878,7 +964,7 @@
       }
     }
 
-    // === 3D 포인트 클라우드(ICP) 미니 뷰 모듈 ===
+    // === [요청2 반영] 밝은 슬레이트 톤으로 통일된 3D 포인트 클라우드(ICP) 미니 뷰 모듈 ===
     const ICP_PARTICLE_COUNT = 180;
     let icpScene, icpCamera, icpRenderer;
     let icpMasterGroup, icpMeasuredGroup;
@@ -926,7 +1012,8 @@
       const h = container.clientHeight || 135;
 
       icpScene = new THREE.Scene();
-      icpScene.background = new THREE.Color(0x020617);
+      // 밝은 슬레이트 배경으로 통일
+      icpScene.background = new THREE.Color(0xf1f5f9);
 
       icpCamera = new THREE.PerspectiveCamera(42, w / h, 0.1, 30);
       icpCamera.position.set(0.0, 2.35, 3.15);
@@ -938,7 +1025,7 @@
       container.innerHTML = '';
       container.appendChild(icpRenderer.domElement);
 
-      const miniGrid = new THREE.GridHelper(3.6, 8, 0x1e293b, 0x0f172a);
+      const miniGrid = new THREE.GridHelper(3.6, 8, 0x94a3b8, 0xcbd5e1);
       miniGrid.position.y = -0.35;
       icpScene.add(miniGrid);
 
@@ -952,14 +1039,14 @@
 
       const masterMat = new THREE.PointsMaterial({
         color: 0x2563eb,
-        size: 0.085,
+        size: 0.09,
         transparent: true,
-        opacity: 0.92
+        opacity: 0.95
       });
 
       const measuredMat = new THREE.PointsMaterial({
         color: 0xea580c,
-        size: 0.095,
+        size: 0.10,
         transparent: true,
         opacity: 0.95
       });
@@ -989,7 +1076,8 @@
       const card = document.getElementById('icpMiniViewCard');
       if (!card) return;
 
-      const isVisibleStep = (currentStep === 7 || currentStep === 8);
+      // Step 8(7) ~ Step 11(10) 동안만 표시되고, 초기화(Step 1) 시 숨김 (&& 조건으로 버그 수정 완료)
+      const isVisibleStep = (currentStep >= 7 && currentStep <= 10);
       if (!isVisibleStep) {
         if (!card.classList.contains('hidden')) {
           card.classList.add('hidden');
@@ -1047,15 +1135,18 @@
 
         if (badgeEl) {
           badgeEl.innerText = "CAPTURING CLOUD";
-          badgeEl.className = "px-1.5 py-0.5 bg-orange-500/20 text-orange-300 border border-orange-400/40 rounded text-[10px] font-mono font-bold";
+          badgeEl.className = "px-1.5 py-0.5 bg-orange-50 text-orange-700 border border-orange-200 rounded text-[10px] font-mono font-bold";
         }
         if (dotEl) dotEl.className = "w-2 h-2 rounded-full bg-orange-500 animate-ping";
         if (rmseEl) {
           rmseEl.innerText = baseRmse.toFixed(3);
-          rmseEl.className = "text-orange-400 font-extrabold";
+          rmseEl.className = "text-orange-600 font-extrabold";
         }
-      } else if (currentStep === 8) {
-        const convT = 1 - Math.pow(1 - THREE.MathUtils.clamp(t, 0, 1), 3);
+      } else if (currentStep >= 8) {
+        const convT = (currentStep === 8) 
+          ? (1 - Math.pow(1 - THREE.MathUtils.clamp(t, 0, 1), 3)) 
+          : 1.0;
+        
         const remainFactor = 1.0 - convT;
 
         icpMeasuredGroup.position.copy(shiftVec).multiplyScalar(remainFactor);
@@ -1066,25 +1157,29 @@
         const isConverged = (convT >= 0.96);
 
         if (badgeEl) {
-          badgeEl.innerText = isConverged ? (isToleranceError ? "ICP COMPUTE (NG)" : "ICP LOCKED ✓") : `CONVERGING ${(convT * 100).toFixed(0)}%`;
+          badgeEl.innerText = isConverged 
+            ? (isToleranceError ? "ICP COMPUTE (NG)" : "ICP LOCKED ✓") 
+            : `CONVERGING ${(convT * 100).toFixed(0)}%`;
           badgeEl.className = isConverged
-            ? (isToleranceError ? "px-1.5 py-0.5 bg-rose-500/20 text-rose-300 border border-rose-400/40 rounded text-[10px] font-mono font-bold" : "px-1.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 rounded text-[10px] font-mono font-bold")
-            : "px-1.5 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-400/40 rounded text-[10px] font-mono font-bold";
+            ? (isToleranceError ? "px-1.5 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded text-[10px] font-mono font-bold" : "px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-mono font-bold")
+            : "px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-[10px] font-mono font-bold";
         }
         if (dotEl) {
           dotEl.className = isConverged
-            ? (isToleranceError ? "w-2 h-2 rounded-full bg-rose-500" : "w-2 h-2 rounded-full bg-emerald-400")
-            : "w-2 h-2 rounded-full bg-blue-400 animate-ping";
+            ? (isToleranceError ? "w-2 h-2 rounded-full bg-rose-500" : "w-2 h-2 rounded-full bg-emerald-500")
+            : "w-2 h-2 rounded-full bg-blue-500 animate-ping";
         }
         if (rmseEl) {
           rmseEl.innerText = currentRmse.toFixed(3);
-          rmseEl.className = isConverged ? (isToleranceError ? "text-rose-400 font-extrabold" : "text-emerald-400 font-extrabold") : "text-amber-300 font-extrabold";
+          rmseEl.className = isConverged 
+            ? (isToleranceError ? "text-rose-600 font-extrabold" : "text-emerald-600 font-extrabold") 
+            : "text-amber-600 font-extrabold";
         }
       }
 
-      const slowSpin = Math.sin(performance.now() * 0.0012) * 0.18;
+      const slowSpin = (currentStep >= 9) ? 0 : Math.sin(performance.now() * 0.0012) * 0.18;
       icpMasterGroup.rotation.y = slowSpin;
-      icpMeasuredGroup.rotation.y += slowSpin;
+      icpMeasuredGroup.rotation.y = slowSpin;
 
       if (icpRenderer && icpScene && icpCamera) {
         icpRenderer.render(icpScene, icpCamera);
@@ -1155,12 +1250,22 @@
       else { content.classList.remove('hidden'); btn.innerText = "CLOSE"; }
     }
 
-    function toggleParamPanel() {
+    function setParamPanelCollapsedState(collapsed) {
       const content = document.getElementById('paramPanelContent');
       const btn = document.getElementById('btnTogglePanel');
-      isParamPanelCollapsed = !isParamPanelCollapsed;
-      if (isParamPanelCollapsed) { content.classList.add('hidden'); btn.innerText = "OPEN"; }
-      else { content.classList.remove('hidden'); btn.innerText = "CLOSE"; }
+      isParamPanelCollapsed = collapsed;
+      if (!content || !btn) return;
+      if (isParamPanelCollapsed) {
+        content.classList.add('hidden');
+        btn.innerText = "OPEN";
+      } else {
+        content.classList.remove('hidden');
+        btn.innerText = "CLOSE";
+      }
+    }
+
+    function toggleParamPanel() {
+      setParamPanelCollapsedState(!isParamPanelCollapsed);
     }
 
     function toggleJobViewer() {
@@ -1430,6 +1535,7 @@
 
       window.addEventListener('resize', onWindowResize);
       updateStepUI();
+      initTrajectoryTrail();
       animate();
     }
 
@@ -1589,7 +1695,7 @@
 
       const uf6Labels = { x: "UF6_XX'", y: "UF6_XY'", z: "UF6_Z'" };
       uf6DashedAxesGroup = createCustom3DDashedAxes(1.35, uf6Labels, 1.45, true); sheetGroup.add(uf6DashedAxesGroup);
-      uf6SolidAxesGroup = createCustom3DAxes(1.35, 0.032, uf6Labels, 1.45, true); sheetGroup.add(uf6SolidAxesGroup);
+      uf6SolidAxesGroup = createCustom3DAxes(2.05, 0.036, uf6Labels, 1.15, true); sheetGroup.add(uf6SolidAxesGroup);
       orgPrimeSprite = createTextSprite("Org' (UF6)", "#ea580c", 28, "#ffffff"); orgPrimeSprite.position.set(0, 0.45, 0); sheetGroup.add(orgPrimeSprite);
 
       sheetPointA = new THREE.Group(); sheetPointA.position.copy(getPointALocalVector());
@@ -1914,6 +2020,169 @@
       manualJointMode = false; setUF5Rotation(0); onVectorChange();
     }
 
+    function initTrajectoryTrail() {
+      resetTrajectoryTrail();
+    }
+
+    function recordTrajectoryPoint(newPos) {
+      if (!showTrail) return;
+      if (currentStep !== 5 && currentStep !== 9) return;
+
+      if (trajectoryPoints.length > 0) {
+        const lastPt = trajectoryPoints[trajectoryPoints.length - 1];
+        if (lastPt.distanceTo(newPos) < 0.02) return;
+      }
+
+      trajectoryPoints.push(newPos.clone());
+      if (trajectoryPoints.length > MAX_TRAIL_POINTS) trajectoryPoints.shift();
+
+      if (trajectoryPoints.length >= 2) {
+        const curve = new THREE.CatmullRomCurve3(trajectoryPoints);
+        const tubeGeom = new THREE.TubeGeometry(curve, trajectoryPoints.length * 2, TRAIL_RADIUS, 8, false);
+        
+        if (!trajectoryMesh) {
+          const tubeMat = new THREE.MeshStandardMaterial({
+            color: 0xf97316,
+            emissive: 0xea580c,
+            emissiveIntensity: 0.45,
+            metalness: 0.2,
+            roughness: 0.3
+          });
+          trajectoryMesh = new THREE.Mesh(tubeGeom, tubeMat);
+          scene.add(trajectoryMesh);
+        } else {
+          trajectoryMesh.geometry.dispose();
+          trajectoryMesh.geometry = tubeGeom;
+        }
+      }
+    }
+
+    function resetTrajectoryTrail() {
+      trajectoryPoints = [];
+      if (trajectoryMesh) {
+        scene.remove(trajectoryMesh);
+        trajectoryMesh.geometry.dispose();
+        trajectoryMesh = null;
+      }
+    }
+
+    function toggleTrajectoryTrail() {
+      showTrail = !showTrail;
+      const btn = document.getElementById('btnToggleTrail');
+      if (btn) {
+        btn.className = showTrail 
+          ? "px-2 py-1 bg-emerald-100 text-emerald-800 rounded-lg transition font-extrabold border border-emerald-400 flex items-center gap-1 shadow-2xs"
+          : "px-2 py-1 bg-slate-100 text-slate-500 rounded-lg transition font-extrabold border border-slate-200 flex items-center gap-1 shadow-2xs";
+      }
+      if (trajectoryMesh) trajectoryMesh.visible = showTrail;
+    }
+
+    // [요청2 & 요청3 반영] 화이트 테마 및 하단 우측 고정형 6-DOF 오차 분석 미니 대시보드 갱신 함수
+    function updateDiffDashboard() {
+      const card = document.getElementById('diffDashboardCard');
+      if (!card) return;
+
+      const isVisibleStep = (currentStep >= 8 && currentStep <= 10);
+      if (!isVisibleStep) {
+        if (!card.classList.contains('hidden')) card.classList.add('hidden');
+        return;
+      }
+      if (card.classList.contains('hidden')) card.classList.remove('hidden');
+
+      const distErrorMM = Math.hypot(ufParams.dx, ufParams.dy, ufParams.dz) * 1000.0;
+      const radX = THREE.MathUtils.degToRad(ufParams.rx);
+      const radY = THREE.MathUtils.degToRad(ufParams.ry);
+      const radZ = THREE.MathUtils.degToRad(ufParams.rz);
+      const qOffset = new THREE.Quaternion().setFromEuler(new THREE.Euler(radX, radZ, -radY, 'ZYX'));
+      const rotAngleDeg = 2.0 * Math.acos(THREE.MathUtils.clamp(qOffset.w, -1.0, 1.0)) * (180.0 / Math.PI);
+
+      const elDistErr = document.getElementById('dashDistErr');
+      const elRotErr = document.getElementById('dashRotErr');
+      const elCompDist = document.getElementById('dashCompDist');
+      const elCompAlign = document.getElementById('dashCompAlign');
+      const elBadge = document.getElementById('dashStatusBadge');
+      const elAccVal = document.getElementById('dashAccuracyVal');
+      const elAccBar = document.getElementById('dashAccuracyBar');
+
+      if (elDistErr) elDistErr.innerText = `±${distErrorMM.toFixed(1)} mm`;
+      if (elRotErr) elRotErr.innerText = `±${rotAngleDeg.toFixed(1)}°`;
+
+      if (isToleranceError) {
+        if (elBadge) {
+          elBadge.innerText = "INTERLOCK TRIPPED";
+          elBadge.className = "px-1.5 py-0.5 bg-rose-100 text-rose-800 border border-rose-300 rounded text-[10px] font-mono font-bold animate-pulse";
+        }
+        if (elCompDist) { elCompDist.innerText = "주행 차단됨"; elCompDist.className = "text-rose-600 font-bold text-[10.5px] leading-none"; }
+        if (elCompAlign) { elCompAlign.innerText = "0.0% (HOLD)"; elCompAlign.className = "text-rose-600 font-black text-[11px] leading-none"; }
+        if (elAccVal) { elAccVal.innerText = "0.0% (NG)"; elAccVal.className = "text-rose-600 font-extrabold"; }
+        if (elAccBar) { elAccBar.style.width = "0%"; elAccBar.className = "h-full bg-rose-600 transition-all duration-300"; }
+      } else {
+        if (elBadge) {
+          elBadge.innerText = (currentStep === 10) ? "CYCLE PASSED" : "COMPENSATED";
+          elBadge.className = "px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-mono font-bold";
+        }
+        if (elCompDist) { elCompDist.innerText = "0.00 mm (OK)"; elCompDist.className = "text-emerald-700 font-black text-[11px] leading-none"; }
+        if (elCompAlign) { elCompAlign.innerText = "100.0% (동축)"; elCompAlign.className = "text-emerald-700 font-black text-[11px] leading-none"; }
+        if (elAccVal) { elAccVal.innerText = "100.0% (Exact)"; elAccVal.className = "text-emerald-700 font-extrabold"; }
+        if (elAccBar) { elAccBar.style.width = "100%"; elAccBar.className = "h-full bg-emerald-500 transition-all duration-300"; }
+      }
+    }
+
+    function applyPresetCase(caseType) {
+      manualJointMode = false;
+      const btn = document.getElementById('trackModeBtn');
+      const dot = document.getElementById('ikStatusDot');
+      if (btn) { btn.textContent = '추종 ON'; btn.className = 'px-2 py-0.5 bg-teal-600 hover:bg-teal-700 text-white rounded text-[11px] font-bold transition whitespace-nowrap'; }
+      if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+
+      setUF5Rotation(0);
+      document.getElementById('pta_x').value = 0.8;
+      document.getElementById('pta_y').value = 0.4;
+      document.getElementById('pta_z').value = 0.0;
+      document.getElementById('pt_len').value = 1.6;
+      document.getElementById('pt_ang').value = 30;
+      document.getElementById('ptb_z').value = 0.0;
+
+      let caseTitle = "";
+      if (caseType === 'A') {
+        caseTitle = "Case A [표준 정상 보정]";
+        document.getElementById('uf6_dx').value = "0.50";
+        document.getElementById('uf6_dy').value = "-0.25";
+        document.getElementById('uf6_dz').value = "0.25";
+        document.getElementById('uf6_rx').value = "5";
+        document.getElementById('uf6_ry').value = "-4";
+        document.getElementById('uf6_rz').value = "10";
+      } else if (caseType === 'B') {
+        caseTitle = "Case B [Z축 침하/들뜸 초과 불량]";
+        document.getElementById('uf6_dx').value = "0.25";
+        document.getElementById('uf6_dy').value = "0.25";
+        document.getElementById('uf6_dz').value = "1.25";
+        document.getElementById('uf6_rx').value = "0";
+        document.getElementById('uf6_ry').value = "0";
+        document.getElementById('uf6_rz').value = "0";
+      } else if (caseType === 'C') {
+        caseTitle = "Case C [부품 3D 복합 비틀림]";
+        document.getElementById('uf6_dx').value = "-0.50";
+        document.getElementById('uf6_dy').value = "0.50";
+        document.getElementById('uf6_dz').value = "-0.25";
+        document.getElementById('uf6_rx').value = "14";
+        document.getElementById('uf6_ry').value = "-12";
+        document.getElementById('uf6_rz').value = "-8";
+      } else if (caseType === 'D') {
+        caseTitle = "Case D [지그 미체결 회전 이탈]";
+        document.getElementById('uf6_dx').value = "0.75";
+        document.getElementById('uf6_dy').value = "-0.50";
+        document.getElementById('uf6_dz').value = "0.00";
+        document.getElementById('uf6_rx').value = "0";
+        document.getElementById('uf6_ry').value = "0";
+        document.getElementById('uf6_rz').value = "32";
+      }
+
+      onVectorChange();
+      appendPacketLog('SYS', `PRESET_LOADED :: ${caseTitle} 주입 완료`);
+      goToStep(8);
+    }
+
     function setGroupOpacity(group, opacity) {
       if (!group) return;
       group.traverse(child => { if (child.material) { child.material.transparent = true; child.material.opacity = opacity; } });
@@ -2079,20 +2348,20 @@
       if (cycleBanner && bannerBox) {
         if (currentStep === 10 && t >= 0.80) {
           if (isToleranceError) {
-            bannerBox.className = "bg-rose-50/95 backdrop-blur-md px-6 py-3 rounded-2xl border-2 border-rose-500 shadow-2xl flex items-center gap-3";
-            bannerIcon.className = "w-8 h-8 rounded-full bg-rose-600 text-white flex items-center justify-center text-base font-black shadow-xs";
+            bannerBox.className = "bg-rose-50/95 backdrop-blur-md px-5 py-2.5 rounded-2xl border-2 border-rose-500 shadow-xl flex items-center gap-3";
+            bannerIcon.className = "w-7 h-7 rounded-full bg-rose-600 text-white flex items-center justify-center text-sm font-black shadow-xs";
             bannerIcon.innerText = "✕";
-            bannerSub.className = "text-[10px] font-extrabold text-rose-600 tracking-widest uppercase";
+            bannerSub.className = "text-[9.5px] font-extrabold text-rose-600 tracking-widest uppercase";
             bannerSub.innerText = "Interlock Tripped : Tolerance Over";
-            bannerTitle.className = "text-lg md:text-xl font-black text-rose-950 tracking-tight";
+            bannerTitle.className = "text-base md:text-lg font-black text-rose-950 tracking-tight leading-tight";
             bannerTitle.innerText = "The work Fails!";
           } else {
-            bannerBox.className = "bg-white/95 backdrop-blur-md px-6 py-3 rounded-2xl border-2 border-blue-500 shadow-2xl flex items-center gap-3";
-            bannerIcon.className = "w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-base font-black shadow-xs";
+            bannerBox.className = "bg-white/95 backdrop-blur-md px-5 py-2.5 rounded-2xl border-2 border-blue-500 shadow-xl flex items-center gap-3";
+            bannerIcon.className = "w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center text-sm font-black shadow-xs";
             bannerIcon.innerText = "✓";
-            bannerSub.className = "text-[10px] font-extrabold text-blue-600 tracking-widest uppercase";
+            bannerSub.className = "text-[9.5px] font-extrabold text-blue-600 tracking-widest uppercase";
             bannerSub.innerText = "1-Cycle Process Done";
-            bannerTitle.className = "text-lg md:text-xl font-black text-slate-900 tracking-tight";
+            bannerTitle.className = "text-base md:text-lg font-black text-slate-900 tracking-tight leading-tight";
             bannerTitle.innerText = "Cycle Completed !!";
           }
           cycleBanner.classList.add('show-banner');
@@ -2264,6 +2533,8 @@
       document.getElementById('toolCoord').innerText = toBaseDisplay(targetPos);
       updateJobViewerHighlight();
       updateICPMiniView(t);
+      recordTrajectoryPoint(targetPos);
+      updateDiffDashboard();
     }
 
     function updateStepUI() {
@@ -2393,13 +2664,23 @@
       camTransition.endTarget.copy(targetLookAt);
     }
 
+    // [요청5 핵심 구현] Step 3(idx >= 2)부터 Step 11까지는 파라미터 창을 자동으로 CLOSE 상태로 전환 (수동 OPEN 가능)
     function goToStep(idx) {
       manualJointMode = false;
+      resetTrajectoryTrail();
       const btn = document.getElementById('trackModeBtn'); const dot = document.getElementById('ikStatusDot');
       if (btn) { btn.textContent = '추종 ON'; btn.className = 'px-2 py-0.5 bg-teal-600 hover:bg-teal-700 text-white rounded text-[11px] font-bold transition whitespace-nowrap'; }
       if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
       
       currentStep = idx;
+
+      // Step 3(idx >= 2) 이상이면 자동으로 CLOSE, Step 1~2(idx <= 1)이면 자동으로 OPEN
+      if (currentStep >= 2) {
+        setParamPanelCollapsedState(true);
+      } else {
+        setParamPanelCollapsedState(false);
+      }
+
       updateStepUI();
 
       if (currentStep === 9 && !isToleranceError) {
@@ -2442,6 +2723,7 @@
         if (currentStep === stepData.length - 1) {
           clearPacketLogs("New Auto-Cycle Started. Previous logs cleared.");
           lastLoggedStep = -1;
+          resetTrajectoryTrail();
           goToStep(0);
           setCameraView('iso');
         }
@@ -2450,11 +2732,11 @@
       }
     }
 
-    // [요청2 핵심 구현] 공정 단계 제어의 '초기화' 버튼 클릭 시 1-Cycle 완전 종료 및 새 기동을 위해 TCP 패킷 로그도 함께 자동 클리어
     function resetSimulation() {
       if (autoPlayTimer) toggleAutoPlay();
       clearPacketLogs("Cycle Reset :: Ready for a new operation sequence.");
       lastLoggedStep = -1;
+      resetTrajectoryTrail();
       goToStep(0);
       setCameraView('iso');
     }
@@ -2493,7 +2775,7 @@
 
       if (controls) controls.update();
       if (!isAnimating) applyStepTransforms(1);
-      else if (currentStep === 7 || currentStep === 8) updateICPMiniView(animProgress);
+      else if (currentStep >= 7 && currentStep <= 10) updateICPMiniView(animProgress);
       renderer.render(scene, camera);
     }
 
